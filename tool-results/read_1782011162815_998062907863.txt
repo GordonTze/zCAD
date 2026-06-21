@@ -1,0 +1,1918 @@
+     1→// ====================== DESKTOP SETUP ======================
+     2→// A modern battlestation / productivity desktop setup.
+     3→// Features: L-shaped desk, gaming PC tower (glass side panel + RGB + visible GPU/CPU cooler),
+     4→// 3 monitors (ultrawide center + 2 side monitors on arms), mechanical keyboard, mouse,
+     5→// mousepad, headphones, desk lamp, speakers, coffee mug, books, plant, ergonomic chair.
+     6→// Room: home office with window (city skyline view), wood floor, painted walls.
+     7→
+     8→import * as THREE from 'three';
+     9→import { addShadow, metal, darkSteel, aluminum, plastic, rubber, brass } from './materials-dsl';
+    10→import {
+    11→  makeWoodTexture, makeConcreteTexture, makeFabricTexture, makeCarpetTexture,
+    12→} from './building-textures';
+    13→
+    14→// ---------- Local texture helpers ----------
+    15→
+    16→function brushedAluminumTexture(): THREE.CanvasTexture {
+    17→  const size = 256;
+    18→  const canvas = document.createElement('canvas');
+    19→  canvas.width = size; canvas.height = size;
+    20→  const ctx = canvas.getContext('2d')!;
+    21→  ctx.fillStyle = '#b8bcc4';
+    22→  ctx.fillRect(0, 0, size, size);
+    23→  // brushed lines
+    24→  for (let i = 0; i < 800; i++) {
+    25→    ctx.strokeStyle = `rgba(${200 + Math.random() * 40},${200 + Math.random() * 40},${210 + Math.random() * 40},${0.15 + Math.random() * 0.2})`;
+    26→    ctx.lineWidth = 0.5 + Math.random();
+    27→    ctx.beginPath();
+    28→    const y = Math.random() * size;
+    29→    ctx.moveTo(0, y);
+    30→    ctx.lineTo(size, y + (Math.random() - 0.5) * 4);
+    31→    ctx.stroke();
+    32→  }
+    33→  const tex = new THREE.CanvasTexture(canvas);
+    34→  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    35→  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    36→  return tex;
+    37→}
+    38→
+    39→function carbonFiberTexture(): THREE.CanvasTexture {
+    40→  const size = 128;
+    41→  const canvas = document.createElement('canvas');
+    42→  canvas.width = size; canvas.height = size;
+    43→  const ctx = canvas.getContext('2d')!;
+    44→  ctx.fillStyle = '#1a1a1a';
+    45→  ctx.fillRect(0, 0, size, size);
+    46→  const cell = 16;
+    47→  for (let x = 0; x < size; x += cell) {
+    48→    for (let y = 0; y < size; y += cell) {
+    49→      const grad = ctx.createLinearGradient(x, y, x + cell, y + cell);
+    50→      grad.addColorStop(0, '#2a2a2a');
+    51→      grad.addColorStop(0.5, '#3a3a3a');
+    52→      grad.addColorStop(1, '#1a1a1a');
+    53→      ctx.fillStyle = grad;
+    54→      ctx.fillRect(x, y, cell / 2 - 0.5, cell / 2 - 0.5);
+    55→      ctx.fillRect(x + cell / 2, y + cell / 2, cell / 2 - 0.5, cell / 2 - 0.5);
+    56→      const grad2 = ctx.createLinearGradient(x + cell / 2, y, x, y + cell / 2);
+    57→      grad2.addColorStop(0, '#252525');
+    58→      grad2.addColorStop(0.5, '#353535');
+    59→      grad2.addColorStop(1, '#1a1a1a');
+    60→      ctx.fillStyle = grad2;
+    61→      ctx.fillRect(x + cell / 2, y, cell / 2 - 0.5, cell / 2 - 0.5);
+    62→      ctx.fillRect(x, y + cell / 2, cell / 2 - 0.5, cell / 2 - 0.5);
+    63→    }
+    64→  }
+    65→  const tex = new THREE.CanvasTexture(canvas);
+    66→  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    67→  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    68→  return tex;
+    69→}
+    70→
+    71→function mousepadTexture(): THREE.CanvasTexture {
+    72→  const size = 256;
+    73→  const canvas = document.createElement('canvas');
+    74→  canvas.width = size; canvas.height = size;
+    75→  const ctx = canvas.getContext('2d')!;
+    76→  // dark background
+    77→  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    78→  grad.addColorStop(0, '#1a1a2a');
+    79→  grad.addColorStop(1, '#0a0a14');
+    80→  ctx.fillStyle = grad;
+    81→  ctx.fillRect(0, 0, size, size);
+    82→  // RGB edge glow
+    83→  for (let i = 0; i < 4; i++) {
+    84→    const colors = ['#ff006e', '#8338ec', '#3a86ff', '#06ffa5'];
+    85→    ctx.strokeStyle = colors[i];
+    86→    ctx.lineWidth = 2;
+    87→    ctx.globalAlpha = 0.6;
+    88→    ctx.strokeRect(4 + i * 2, 4 + i * 2, size - 8 - i * 4, size - 8 - i * 4);
+    89→  }
+    90→  ctx.globalAlpha = 1;
+    91→  // subtle grid pattern
+    92→  ctx.strokeStyle = 'rgba(100,150,255,0.08)';
+    93→  ctx.lineWidth = 0.5;
+    94→  for (let x = 0; x < size; x += 16) {
+    95→    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, size); ctx.stroke();
+    96→  }
+    97→  for (let y = 0; y < size; y += 16) {
+    98→    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke();
+    99→  }
+   100→  const tex = new THREE.CanvasTexture(canvas);
+   101→  tex.colorSpace = THREE.SRGBColorSpace;
+   102→  return tex;
+   103→}
+   104→
+   105→function monitorScreenTexture(theme: 'code' | 'browser' | 'wallpaper'): THREE.CanvasTexture {
+   106→  const w = 512, h = 288; // 16:9
+   107→  const canvas = document.createElement('canvas');
+   108→  canvas.width = w; canvas.height = h;
+   109→  const ctx = canvas.getContext('2d')!;
+   110→
+   111→  if (theme === 'code') {
+   112→    // dark IDE theme
+   113→    ctx.fillStyle = '#1e1e2e';
+   114→    ctx.fillRect(0, 0, w, h);
+   115→    // title bar
+   116→    ctx.fillStyle = '#181825';
+   117→    ctx.fillRect(0, 0, w, 24);
+   118→    ctx.fillStyle = '#cdd6f4';
+   119→    ctx.font = 'bold 12px monospace';
+   120→    ctx.fillText('main.ts — Desktop Setup', 12, 16);
+   121→    // traffic lights
+   122→    ctx.fillStyle = '#ff5f56'; ctx.beginPath(); ctx.arc(12, 12, 5, 0, Math.PI * 2); ctx.fill();
+   123→    ctx.fillStyle = '#ffbd2e'; ctx.beginPath(); ctx.arc(28, 12, 5, 0, Math.PI * 2); ctx.fill();
+   124→    ctx.fillStyle = '#27c93f'; ctx.beginPath(); ctx.arc(44, 12, 5, 0, Math.PI * 2); ctx.fill();
+   125→    // sidebar
+   126→    ctx.fillStyle = '#181825';
+   127→    ctx.fillRect(0, 24, 60, h - 24);
+   128→    ctx.fillStyle = '#cba6f7';
+   129→    ctx.font = '10px monospace';
+   130→    ['src', '  cad', '  models', '  views', 'public'].forEach((t, i) => ctx.fillText(t, 8, 44 + i * 16));
+   131→    // code lines
+   132→    const colors = ['#cdd6f4', '#f9e2af', '#a6e3a1', '#89b4fa', '#f5c2e7', '#94e2d5', '#cba6f7'];
+   133→    const codeLines = [
+   134→      'import * as THREE from "three";',
+   135→      'export function createDesktop() {',
+   136→      '  const desk = new THREE.Group();',
+   137→      '  const monitor = makeMonitor("ultrawide");',
+   138→      '  desk.add(monitor);',
+   139→      '  const pc = buildGamingPC({ rgb: true });',
+   140→      '  desk.add(pc);',
+   141→      '  return desk;',
+   142→      '}',
+   143→    ];
+   144→    ctx.font = '11px "Courier New", monospace';
+   145→    codeLines.forEach((line, i) => {
+   146→      const y = 44 + i * 18;
+   147→      // syntax highlighting
+   148→      let x = 70;
+   149→      const tokens = line.split(/(\s+|[(){};,".])/);
+   150→      tokens.forEach(tok => {
+   151→        if (tok === 'import' || tok === 'export' || tok === 'function' || tok === 'return' || tok === 'const' || tok === 'new') {
+   152→          ctx.fillStyle = '#cba6f7';
+   153→        } else if (tok === 'THREE' || tok === 'Group') {
+   154→          ctx.fillStyle = '#f9e2af';
+   155→        } else if (tok === '"three"' || tok === '"ultrawide"') {
+   156→          ctx.fillStyle = '#a6e3a1';
+   157→        } else if (tok === 'createDesktop' || tok === 'makeMonitor' || tok === 'buildGamingPC') {
+   158→          ctx.fillStyle = '#89b4fa';
+   159→        } else {
+   160→          ctx.fillStyle = '#cdd6f4';
+   161→        }
+   162→        ctx.fillText(tok, x, y);
+   163→        x += ctx.measureText(tok).width;
+   164→      });
+   165→    });
+   166→    // line numbers
+   167→    ctx.fillStyle = '#585b70';
+   168→    ctx.font = '10px monospace';
+   169→    for (let i = 0; i < 12; i++) ctx.fillText(String(i + 1), 64, 44 + i * 18);
+   170→  } else if (theme === 'browser') {
+   171→    // browser with dashboard
+   172→    ctx.fillStyle = '#f0f0f0';
+   173→    ctx.fillRect(0, 0, w, h);
+   174→    // browser chrome
+   175→    ctx.fillStyle = '#e0e0e0';
+   176→    ctx.fillRect(0, 0, w, 36);
+   177→    // URL bar
+   178→    ctx.fillStyle = '#ffffff';
+   179→    ctx.fillRect(80, 8, w - 160, 20);
+   180→    ctx.fillStyle = '#888';
+   181→    ctx.font = '11px sans-serif';
+   182→    ctx.fillText('🔒 dashboard.example.com', 88, 22);
+   183→    // dashboard cards
+   184→    const cards = [
+   185→      { x: 20, y: 56, w: 140, h: 80, color: '#6366f1', label: 'Revenue', value: '$42.5K' },
+   186→      { x: 172, y: 56, w: 140, h: 80, color: '#10b981', label: 'Active Users', value: '1,284' },
+   187→      { x: 324, y: 56, w: 140, h: 80, color: '#f59e0b', label: 'Orders', value: '342' },
+   188→    ];
+   189→    cards.forEach(c => {
+   190→      ctx.fillStyle = '#fff';
+   191→      ctx.fillRect(c.x, c.y, c.w, c.h);
+   192→      ctx.fillStyle = c.color;
+   193→      ctx.fillRect(c.x, c.y, 4, c.h);
+   194→      ctx.fillStyle = '#666';
+   195→      ctx.font = '10px sans-serif';
+   196→      ctx.fillText(c.label, c.x + 12, c.y + 22);
+   197→      ctx.fillStyle = '#111';
+   198→      ctx.font = 'bold 20px sans-serif';
+   199→      ctx.fillText(c.value, c.x + 12, c.y + 50);
+   200→    });
+   201→    // chart
+   202→    ctx.fillStyle = '#fff';
+   203→    ctx.fillRect(20, 150, 320, 120);
+   204→    ctx.fillStyle = '#6366f1';
+   205→    ctx.beginPath();
+   206→    ctx.moveTo(30, 250);
+   207→    const pts = [240, 220, 230, 190, 200, 160, 170, 180];
+   208→    pts.forEach((py, i) => ctx.lineTo(30 + i * 40, py));
+   209→    ctx.lineTo(310, 250);
+   210→    ctx.closePath();
+   211→    ctx.fill();
+   212→    // legend
+   213→    ctx.fillStyle = '#fff';
+   214→    ctx.fillRect(352, 150, 160, 120);
+   215→    ctx.fillStyle = '#333';
+   216→    ctx.font = '11px sans-serif';
+   217→    ctx.fillText('Recent Activity', 360, 168);
+   218→    ['• New signup', '• Deploy success', '• Backup complete', '• Alert resolved'].forEach((t, i) => {
+   219→      ctx.fillStyle = '#666';
+   220→      ctx.fillText(t, 360, 188 + i * 18);
+   221→    });
+   222→  } else {
+   223→    // wallpaper - abstract gradient
+   224→    const grad = ctx.createLinearGradient(0, 0, w, h);
+   225→    grad.addColorStop(0, '#1a1a2e');
+   226→    grad.addColorStop(0.5, '#16213e');
+   227→    grad.addColorStop(1, '#0f3460');
+   228→    ctx.fillStyle = grad;
+   229→    ctx.fillRect(0, 0, w, h);
+   230→    // mountains silhouette
+   231→    ctx.fillStyle = '#0a0a1a';
+   232→    ctx.beginPath();
+   233→    ctx.moveTo(0, h);
+   234→    ctx.lineTo(0, 180);
+   235→    ctx.lineTo(80, 140);
+   236→    ctx.lineTo(160, 170);
+   237→    ctx.lineTo(240, 110);
+   238→    ctx.lineTo(320, 150);
+   239→    ctx.lineTo(400, 120);
+   240→    ctx.lineTo(512, 160);
+   241→    ctx.lineTo(512, h);
+   242→    ctx.closePath();
+   243→    ctx.fill();
+   244→    // moon
+   245→    ctx.fillStyle = 'rgba(255,255,220,0.9)';
+   246→    ctx.beginPath();
+   247→    ctx.arc(400, 70, 24, 0, Math.PI * 2);
+   248→    ctx.fill();
+   249→    // stars
+   250→    ctx.fillStyle = '#fff';
+   251→    for (let i = 0; i < 80; i++) {
+   252→      const x = Math.random() * w;
+   253→      const y = Math.random() * 140;
+   254→      ctx.globalAlpha = Math.random();
+   255→      ctx.fillRect(x, y, 1, 1);
+   256→    }
+   257→    ctx.globalAlpha = 1;
+   258→  }
+   259→
+   260→  const tex = new THREE.CanvasTexture(canvas);
+   261→  tex.colorSpace = THREE.SRGBColorSpace;
+   262→  return tex;
+   263→}
+   264→
+   265→// Hardwood floor plank texture — straight horizontal planks with subtle grain,
+   266→// plank seams, and a warm brown tone. No wavy lines (unlike makeWoodTexture
+   267→// which has sin-wave grain for furniture). Each plank is a horizontal board
+   268→// with a dark seam between planks and faint straight grain within.
+   269→function floorPlankTexture(baseColor = '#9a7048', darkColor = '#5a3820', seamColor = '#3a2410'): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   270→  const W = 512, H = 512;
+   271→  // --- Color map ---
+   272→  const canvas = document.createElement('canvas');
+   273→  canvas.width = W; canvas.height = H;
+   274→  const ctx = canvas.getContext('2d')!;
+   275→  ctx.fillStyle = baseColor;
+   276→  ctx.fillRect(0, 0, W, H);
+   277→  // Plank layout: 6 horizontal planks, each 512/6 ≈ 85px tall
+   278→  const plankH = H / 6;
+   279→  for (let p = 0; p < 6; p++) {
+   280→    const py = p * plankH;
+   281→    // Subtle per-plank color variation (some planks slightly lighter/darker)
+   282→    const variation = (p % 3) - 1; // -1, 0, 1
+   283→    const r = parseInt(baseColor.substring(1, 3), 16) + variation * 10;
+   284→    const g = parseInt(baseColor.substring(3, 5), 16) + variation * 8;
+   285→    const b = parseInt(baseColor.substring(5, 7), 16) + variation * 5;
+   286→    ctx.fillStyle = `rgb(${Math.max(0, r)}, ${Math.max(0, g)}, ${Math.max(0, b)})`;
+   287→    ctx.fillRect(0, py, W, plankH);
+   288→    // Faint straight grain lines within each plank (horizontal, very subtle)
+   289→    ctx.strokeStyle = darkColor;
+   290→    ctx.globalAlpha = 0.12;
+   291→    ctx.lineWidth = 1;
+   292→    for (let i = 0; i < 8; i++) {
+   293→      ctx.beginPath();
+   294→      const ly = py + (i / 8) * plankH + 4;
+   295→      ctx.moveTo(0, ly);
+   296→      // Almost-straight lines with very slight jitter (not wavy)
+   297→      for (let x = 0; x <= W; x += 32) {
+   298→        ctx.lineTo(x, ly + (Math.random() - 0.5) * 0.8);
+   299→      }
+   300→      ctx.stroke();
+   301→    }
+   302→    ctx.globalAlpha = 1;
+   303→    // Plank seam (dark line at the top of each plank)
+   304→    ctx.fillStyle = seamColor;
+   305→    ctx.fillRect(0, py, W, 2);
+   306→    // Plank end joints (staggered vertical seams — every other plank has a joint at a different X)
+   307→    const jointX = (p % 2 === 0) ? W * 0.35 : W * 0.7;
+   308→    ctx.fillRect(jointX, py, 2, plankH);
+   309→  }
+   310→  const map = new THREE.CanvasTexture(canvas);
+   311→  map.wrapS = THREE.RepeatWrapping; map.wrapT = THREE.RepeatWrapping;
+   312→  map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+   313→
+   314→  // --- Bump map ---
+   315→  const bumpCanvas = document.createElement('canvas');
+   316→  bumpCanvas.width = W; bumpCanvas.height = H;
+   317→  const bctx = bumpCanvas.getContext('2d')!;
+   318→  bctx.fillStyle = '#909090';
+   319→  bctx.fillRect(0, 0, W, H);
+   320→  for (let p = 0; p < 6; p++) {
+   321→    const py = p * plankH;
+   322→    // Plank surface (slightly raised)
+   323→    bctx.fillStyle = '#a0a0a0';
+   324→    bctx.fillRect(0, py + 2, W, plankH - 2);
+   325→    // Plank seam (recessed — darker)
+   326→    bctx.fillStyle = '#404040';
+   327→    bctx.fillRect(0, py, W, 2);
+   328→    // End joint
+   329→    const jointX = (p % 2 === 0) ? W * 0.35 : W * 0.7;
+   330→    bctx.fillRect(jointX, py, 2, plankH);
+   331→    // Faint grain (very subtle)
+   332→    bctx.strokeStyle = '#888888';
+   333→    bctx.lineWidth = 1;
+   334→    for (let i = 0; i < 8; i++) {
+   335→      bctx.beginPath();
+   336→      const ly = py + (i / 8) * plankH + 4;
+   337→      bctx.moveTo(0, ly);
+   338→      for (let x = 0; x <= W; x += 32) {
+   339→        bctx.lineTo(x, ly + (Math.random() - 0.5) * 0.8);
+   340→      }
+   341→      bctx.stroke();
+   342→    }
+   343→  }
+   344→  const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+   345→  bumpMap.wrapS = THREE.RepeatWrapping; bumpMap.wrapT = THREE.RepeatWrapping;
+   346→  return { map, bumpMap };
+   347→}
+   348→
+   349→// Full QWERTY keyboard texture (ANSI layout, 60% compact — no numpad)
+   350→// 5 rows: number row, QWERTY row, ASDF row, ZXCV row, spacebar row
+   351→function keycapTexture(): THREE.CanvasTexture {
+   352→  const W = 760, H = 260; // wide canvas matching keyboard aspect ratio (~2.9:1)
+   353→  const canvas = document.createElement('canvas');
+   354→  canvas.width = W; canvas.height = H;
+   355→  const ctx = canvas.getContext('2d')!;
+   356→
+   357→  // Background (keyboard chassis)
+   358→  ctx.fillStyle = '#1a1a1e';
+   359→  ctx.fillRect(0, 0, W, H);
+   360→
+   361→  const keyH = 44;       // standard key height
+   362→  const gap = 3;         // gap between keys
+   363→  const keyW = 44;       // standard 1u key width
+   364→  const padX = 10;       // left/right padding
+   365→  const padY = 10;       // top/bottom padding
+   366→
+   367→  // Helper: draw a single keycap at (x, y) with given width and label(s)
+   368→  function drawKey(x: number, y: number, w: number, main: string, sub?: string) {
+   369→    // Keycap top with subtle gradient (lighter at top, darker at bottom)
+   370→    const grad = ctx.createLinearGradient(x, y, x, y + keyH);
+   371→    grad.addColorStop(0, '#3a3a40');
+   372→    grad.addColorStop(0.5, '#2a2a2e');
+   373→    grad.addColorStop(1, '#1a1a1e');
+   374→    ctx.fillStyle = grad;
+   375→    ctx.fillRect(x, y, w, keyH);
+   376→    // Keycap border (darker)
+   377→    ctx.strokeStyle = '#0a0a0a';
+   378→    ctx.lineWidth = 1;
+   379→    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, keyH - 1);
+   380→    // Label
+   381→    ctx.fillStyle = '#c8c8d0';
+   382→    ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+   383→    ctx.textAlign = 'center';
+   384→    ctx.textBaseline = 'middle';
+   385→    if (sub) {
+   386→      // Dual-label key (number row: shifted symbol on top, number on bottom)
+   387→      ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
+   388→      ctx.fillStyle = '#909098';
+   389→      ctx.fillText(sub, x + w / 2, y + 12);
+   390→      ctx.fillStyle = '#c8c8d0';
+   391→      ctx.font = 'bold 15px "Segoe UI", Arial, sans-serif';
+   392→      ctx.fillText(main, x + w / 2, y + 30);
+   393→    } else {
+   394→      ctx.fillText(main, x + w / 2, y + keyH / 2 + 1);
+   395→    }
+   396→  }
+   397→
+   398→  // Row 1: Number row (with shifted symbols)
+   399→  const row1Y = padY;
+   400→  const row1 = [
+   401→    { m: '1', s: '!' }, { m: '2', s: '@' }, { m: '3', s: '#' }, { m: '4', s: '$' },
+   402→    { m: '5', s: '%' }, { m: '6', s: '^' }, { m: '7', s: '&' }, { m: '8', s: '*' },
+   403→    { m: '9', s: '(' }, { m: '0', s: ')' }, { m: '-', s: '_' }, { m: '=', s: '+' },
+   404→  ];
+   405→  let x = padX;
+   406→  for (const k of row1) { drawKey(x, row1Y, keyW, k.m, k.s); x += keyW + gap; }
+   407→  drawKey(x, row1Y, keyW * 2, '⌫ Backspace'); x += keyW * 2 + gap;
+   408→
+   409→  // Row 2: Tab + QWERTY row
+   410→  const row2Y = padY + keyH + gap;
+   411→  x = padX;
+   412→  drawKey(x, row2Y, keyW * 1.5, 'Tab'); x += keyW * 1.5 + gap;
+   413→  for (const letter of 'QWERTYUIOP') { drawKey(x, row2Y, keyW, letter); x += keyW + gap; }
+   414→  drawKey(x, row2Y, keyW, '[', '['); x += keyW + gap;
+   415→  drawKey(x, row2Y, keyW, ']', ']'); x += keyW + gap;
+   416→  drawKey(x, row2Y, keyW * 1.5, '\\', '\\'); x += keyW * 1.5 + gap;
+   417→
+   418→  // Row 3: Caps Lock + ASDF row (home row)
+   419→  const row3Y = padY + (keyH + gap) * 2;
+   420→  x = padX;
+   421→  drawKey(x, row3Y, keyW * 1.75, 'Caps'); x += keyW * 1.75 + gap;
+   422→  for (const letter of 'ASDFGHJKL') { drawKey(x, row3Y, keyW, letter); x += keyW + gap; }
+   423→  drawKey(x, row3Y, keyW, ';', ';'); x += keyW + gap;
+   424→  drawKey(x, row3Y, keyW, "'", "'"); x += keyW + gap;
+   425→  drawKey(x, row3Y, keyW * 2.25, 'Enter'); x += keyW * 2.25 + gap;
+   426→
+   427→  // Row 4: Shift + ZXCV row
+   428→  const row4Y = padY + (keyH + gap) * 3;
+   429→  x = padX;
+   430→  drawKey(x, row4Y, keyW * 2.25, 'Shift'); x += keyW * 2.25 + gap;
+   431→  for (const letter of 'ZXCVBNM') { drawKey(x, row4Y, keyW, letter); x += keyW + gap; }
+   432→  drawKey(x, row4Y, keyW, ','); x += keyW + gap;
+   433→  drawKey(x, row4Y, keyW, '.'); x += keyW + gap;
+   434→  drawKey(x, row4Y, keyW, '/'); x += keyW + gap;
+   435→  drawKey(x, row4Y, keyW * 2.75, 'Shift'); x += keyW * 2.75 + gap;
+   436→
+   437→  // Row 5: Bottom row (Ctrl, Win, Alt, Space, Alt, Fn, Menu, Ctrl)
+   438→  const row5Y = padY + (keyH + gap) * 4;
+   439→  x = padX;
+   440→  drawKey(x, row5Y, keyW * 1.25, 'Ctrl'); x += keyW * 1.25 + gap;
+   441→  drawKey(x, row5Y, keyW * 1.25, 'Win'); x += keyW * 1.25 + gap;
+   442→  drawKey(x, row5Y, keyW * 1.25, 'Alt'); x += keyW * 1.25 + gap;
+   443→  drawKey(x, row5Y, keyW * 6.25, 'Space'); x += keyW * 6.25 + gap; // spacebar
+   444→  drawKey(x, row5Y, keyW * 1.25, 'Alt'); x += keyW * 1.25 + gap;
+   445→  drawKey(x, row5Y, keyW * 1.25, 'Fn'); x += keyW * 1.25 + gap;
+   446→  drawKey(x, row5Y, keyW * 1.25, 'Menu'); x += keyW * 1.25 + gap;
+   447→  drawKey(x, row5Y, keyW * 1.25, 'Ctrl'); x += keyW * 1.25 + gap;
+   448→
+   449→  ctx.textAlign = 'left';
+   450→  ctx.textBaseline = 'alphabetic';
+   451→
+   452→  const tex = new THREE.CanvasTexture(canvas);
+   453→  tex.colorSpace = THREE.SRGBColorSpace;
+   454→  tex.anisotropy = 8;
+   455→  return tex;
+   456→}
+   457→
+   458→// ====================== SETUP ======================
+   459→
+   460→export function createDesktopSetupGeometry(): THREE.Group {
+   461→  const root = new THREE.Group();
+   462→
+   463→  // Scale: 10 units = 1 meter
+   464→  // Desk height: 7.5 units (0.75m standard desk)
+   465→  // Monitor height: eye level ~12-15 units above desk
+   466→
+   467→  // ===== MATERIALS =====
+   468→  const deskWood = makeWoodTexture('#6b4528', '#3a2515');
+   469→  deskWood.map.repeat.set(4, 2); deskWood.bumpMap.repeat.set(4, 2);
+   470→  const deskMat = new THREE.MeshStandardMaterial({
+   471→    map: deskWood.map, bumpMap: deskWood.bumpMap, bumpScale: 0.03,
+   472→    metalness: 0.1, roughness: 0.45,
+   473→  });
+   474→
+   475→  const deskLegMat = new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.7, roughness: 0.3 }); // lighter gunmetal
+   476→
+   477→  const brushedAlTex = brushedAluminumTexture();
+   478→  brushedAlTex.repeat.set(2, 2);
+   479→  const aluminMat = new THREE.MeshStandardMaterial({
+   480→    map: brushedAlTex, metalness: 0.85, roughness: 0.25,
+   481→  });
+   482→
+   483→  const carbonTex = carbonFiberTexture();
+   484→  carbonTex.repeat.set(2, 2);
+   485→  const carbonMat = new THREE.MeshStandardMaterial({
+   486→    map: carbonTex, metalness: 0.5, roughness: 0.4,
+   487→  });
+   488→
+   489→  // Lighter neutral plastics for variety (instead of everything being 0x1a1a1a)
+   490→  const midGrayPlasticMat = new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.3, roughness: 0.5 }); // mid gray
+   491→  const lightGrayPlasticMat = new THREE.MeshStandardMaterial({ color: 0x9a9aa2, metalness: 0.2, roughness: 0.5 }); // light gray
+   492→  const whitePlasticMat = new THREE.MeshStandardMaterial({ color: 0xe8e8ec, metalness: 0.1, roughness: 0.4 }); // off-white
+   493→
+   494→  const glassPanelMat = new THREE.MeshStandardMaterial({
+   495→    color: 0x0a0a14, metalness: 0.3, roughness: 0.1,
+   496→    transparent: true, opacity: 0.55,
+   497→  });
+   498→
+   499→  const darkPlasticMat = new THREE.MeshStandardMaterial({ color: 0x2a2a32, metalness: 0.3, roughness: 0.5 }); // dark charcoal (not pure black)
+   500→  const lightPlasticMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.1, roughness: 0.4 });
+   501→
+   502→  // RGB materials (emissive)
+   503→  const rgbMagentaMat = new THREE.MeshStandardMaterial({ color: 0xff006e, emissive: 0xff006e, emissiveIntensity: 1.5, metalness: 0.2, roughness: 0.4 });
+   504→  const rgbCyanMat = new THREE.MeshStandardMaterial({ color: 0x00d9ff, emissive: 0x00d9ff, emissiveIntensity: 1.5, metalness: 0.2, roughness: 0.4 });
+   505→  const rgbPurpleMat = new THREE.MeshStandardMaterial({ color: 0x8338ec, emissive: 0x8338ec, emissiveIntensity: 1.5, metalness: 0.2, roughness: 0.4 });
+   506→  const rgbGreenMat = new THREE.MeshStandardMaterial({ color: 0x06ffa5, emissive: 0x06ffa5, emissiveIntensity: 1.5, metalness: 0.2, roughness: 0.4 });
+   507→
+   508→  // Monitor bezel and screen materials
+   509→  // Monitor bezel — slim, dark gray (not pure black) for a more modern look
+   510→  const bezelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a20, metalness: 0.4, roughness: 0.45 });
+   511→  // Monitor stand — brushed silver aluminum
+   512→  const standMat = new THREE.MeshStandardMaterial({ color: 0xa8acb4, metalness: 0.8, roughness: 0.25 });
+   513→
+   514→  // Screen textures
+   515→  const centerScreenTex = monitorScreenTexture('code');
+   516→  const leftScreenTex = monitorScreenTexture('browser');
+   517→  const rightScreenTex = monitorScreenTexture('wallpaper');
+   518→
+   519→  const centerScreenMat = new THREE.MeshStandardMaterial({
+   520→    map: centerScreenTex, emissive: 0xffffff, emissiveMap: centerScreenTex, emissiveIntensity: 0.8,
+   521→    metalness: 0.1, roughness: 0.2,
+   522→  });
+   523→  const leftScreenMat = new THREE.MeshStandardMaterial({
+   524→    map: leftScreenTex, emissive: 0xffffff, emissiveMap: leftScreenTex, emissiveIntensity: 0.8,
+   525→    metalness: 0.1, roughness: 0.2,
+   526→  });
+   527→  const rightScreenMat = new THREE.MeshStandardMaterial({
+   528→    map: rightScreenTex, emissive: 0xffffff, emissiveMap: rightScreenTex, emissiveIntensity: 0.7,
+   529→    metalness: 0.1, roughness: 0.2,
+   530→  });
+   531→
+   532→  // Keyboard
+   533→  const keycapTex = keycapTexture();
+   534→  // Full QWERTY texture maps 1:1 onto the keyboard surface (no tiling)
+   535→  const keycapMat = new THREE.MeshStandardMaterial({
+   536→    map: keycapTex, metalness: 0.2, roughness: 0.6,
+   537→  });
+   538→  // Keyboard frame — dark gray (not black) with aluminum accent
+   539→  const kbFrameMat = new THREE.MeshStandardMaterial({ color: 0x3a3a42, metalness: 0.5, roughness: 0.4 });
+   540→
+   541→  // Mouse
+   542→  // Mouse — light gray body (logitech-style) instead of black
+   543→  const mouseMat = new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.4, roughness: 0.3 });
+   544→
+   545→  // Mousepad
+   546→  const mousepadTex = mousepadTexture();
+   547→  const mousepadMat = new THREE.MeshStandardMaterial({
+   548→    map: mousepadTex, metalness: 0.2, roughness: 0.7,
+   549→  });
+   550→
+   551→  // Headphones
+   552→  // Headphones — warm taupe/brown leatherette instead of black
+   553→  const headbandMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, metalness: 0.3, roughness: 0.6 });
+   554→  const earCupMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, metalness: 0.3, roughness: 0.5 });
+   555→  const earPadMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, metalness: 0.1, roughness: 0.85 });
+   556→
+   557→  // Desk lamp
+   558→  // Desk lamp — brushed silver arm + warm white shade
+   559→  const lampMat = new THREE.MeshStandardMaterial({ color: 0xa8acb4, metalness: 0.7, roughness: 0.25 });
+   560→  const lampShadeMat = new THREE.MeshStandardMaterial({
+   561→    color: 0xf5f0e0, emissive: 0xfff0a0, emissiveIntensity: 0.6, metalness: 0.3, roughness: 0.4,
+   562→  });
+   563→
+   564→  // Speakers
+   565→  // Speakers — warm walnut wood veneer + dark gray grille (bookshelf speaker look)
+   566→  const speakerWoodTex = makeWoodTexture('#6b4528', '#3a2515');
+   567→  speakerWoodTex.map.repeat.set(1, 2); speakerWoodTex.bumpMap.repeat.set(1, 2);
+   568→  const speakerMat = new THREE.MeshStandardMaterial({
+   569→    map: speakerWoodTex.map, bumpMap: speakerWoodTex.bumpMap, bumpScale: 0.02, metalness: 0.1, roughness: 0.6,
+   570→  });
+   571→  const speakerGrillMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.1, roughness: 0.8 });
+   572→
+   573→  // Mug
+   574→  const mugMat = new THREE.MeshStandardMaterial({ color: 0xe8e0d4, metalness: 0.1, roughness: 0.4 });
+   575→
+   576→  // Books
+   577→  const bookMats = [
+   578→    new THREE.MeshStandardMaterial({ color: 0x8b3a3a, roughness: 0.7 }),
+   579→    new THREE.MeshStandardMaterial({ color: 0x2a5a8a, roughness: 0.7 }),
+   580→    new THREE.MeshStandardMaterial({ color: 0x3a5a2a, roughness: 0.7 }),
+   581→    new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 0.7 }),
+   582→  ];
+   583→
+   584→  // Plant
+   585→  const potMat = new THREE.MeshStandardMaterial({ color: 0xe8d4b8, roughness: 0.6, metalness: 0.1 });
+   586→  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3a6a3a, roughness: 0.8 });
+   587→  const stemMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 0.8 });
+   588→
+   589→  // Chair — light gray fabric mesh + silver aluminum frame
+   590→  const chairFabric = makeFabricTexture('#5a5a64', '#3a3a44');
+   591→  chairFabric.map.repeat.set(2, 2); chairFabric.bumpMap.repeat.set(2, 2);
+   592→  const chairMat = new THREE.MeshStandardMaterial({
+   593→    map: chairFabric.map, bumpMap: chairFabric.bumpMap, bumpScale: 0.04,
+   594→    metalness: 0.05, roughness: 0.75,
+   595→  });
+   596→  const chairFrameMat = new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.8, roughness: 0.25 }); // brushed aluminum
+   597→
+   598→  // Room
+   599→  const wallTex = makeConcreteTexture('#e8e0d4');
+   600→  wallTex.map.repeat.set(6, 3); wallTex.bumpMap.repeat.set(6, 3);
+   601→  const wallMat = new THREE.MeshStandardMaterial({
+   602→    map: wallTex.map, bumpMap: wallTex.bumpMap, bumpScale: 0.015, roughness: 0.85,
+   603→  });
+   604→  const accentWallTex = makeConcreteTexture('#2a3a4a');
+   605→  accentWallTex.map.repeat.set(6, 3); accentWallTex.bumpMap.repeat.set(6, 3);
+   606→  const accentWallMat = new THREE.MeshStandardMaterial({
+   607→    map: accentWallTex.map, bumpMap: accentWallTex.bumpMap, bumpScale: 0.015, roughness: 0.85,
+   608→  });
+   609→  // Natural brownish hardwood floor — straight plank boards (not wavy grain).
+   610→  // Uses the dedicated floorPlankTexture with horizontal planks, seams, and staggered end joints.
+   611→  const floorTex = floorPlankTexture('#8a6440', '#5a3820', '#3a2410');
+   612→  floorTex.map.repeat.set(6, 6); floorTex.bumpMap.repeat.set(6, 6);
+   613→  const floorMat = new THREE.MeshStandardMaterial({
+   614→    map: floorTex.map, bumpMap: floorTex.bumpMap, bumpScale: 0.03, metalness: 0.1, roughness: 0.6,
+   615→  });
+   616→  const ceilTex = makeConcreteTexture('#f5f0e8');
+   617→  ceilTex.map.repeat.set(6, 4);
+   618→  const ceilMat = new THREE.MeshStandardMaterial({
+   619→    map: ceilTex.map, bumpMap: ceilTex.bumpMap, bumpScale: 0.01, roughness: 0.9,
+   620→  });
+   621→  const glassMat = new THREE.MeshStandardMaterial({
+   622→    color: 0x88aacc, metalness: 0.7, roughness: 0.05, transparent: true, opacity: 0.35,
+   623→  });
+   624→
+   625→  // ============================================================
+   626→  // ROOM (home office — spacious loft feel)
+   627→  // 12m x 9m x 4.5m (120 x 90 x 45 units) — larger and taller than before
+   628→  // to avoid feeling cramped. Desk and objects keep their current sizes.
+   629→  // ============================================================
+   630→  const ROOM_W = 120;   // X: -60 to +60
+   631→  const ROOM_D = 90;    // Z: -45 to +45
+   632→  const ROOM_H = 45;    // Y: 0 to 45 (4.5m ceiling — loft height)
+   633→
+   634→  // Floor
+   635→  const floor = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_D), floorMat));
+   636→  floor.rotation.x = -Math.PI / 2;
+   637→  floor.position.set(0, 0, 0);
+   638→  floor.receiveShadow = true;
+   639→  root.add(floor);
+   640→
+   641→  // Ceiling
+   642→  const ceiling = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_D), ceilMat));
+   643→  ceiling.rotation.x = Math.PI / 2;
+   644→  ceiling.position.set(0, ROOM_H, 0);
+   645→  ceiling.receiveShadow = true;
+   646→  root.add(ceiling);
+   647→
+   648→  // Walls (4 sides)
+   649→  // South wall (behind user, Z=-45) — accent wall
+   650→  const wallS = addShadow(new THREE.Mesh(new THREE.BoxGeometry(ROOM_W, ROOM_H, 1), accentWallMat));
+   651→  wallS.position.set(0, ROOM_H / 2, -ROOM_D / 2 - 0.5);
+   652→  root.add(wallS);
+   653→  // North wall (behind monitors, Z=45) — has window
+   654→  // Window opening: X=-10..30 (40 wide), Y=9..36 (27 tall)
+   655→  // Left segment: X=-60..-10 (50 wide), right segment: X=30..60 (30 wide)
+   656→  const wallN1 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(50, ROOM_H, 1), wallMat));
+   657→  wallN1.position.set(-35, ROOM_H / 2, ROOM_D / 2);
+   658→  root.add(wallN1);
+   659→  const wallN2 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(30, ROOM_H, 1), wallMat));
+   660→  wallN2.position.set(45, ROOM_H / 2, ROOM_D / 2);
+   661→  root.add(wallN2);
+   662→  // Window header and sill (above/below window opening X=-10..30, height 9..36)
+   663→  const wallNHdr = addShadow(new THREE.Mesh(new THREE.BoxGeometry(40, 9, 1), wallMat));
+   664→  wallNHdr.position.set(10, 40.5, ROOM_D / 2);
+   665→  root.add(wallNHdr);
+   666→  const wallNSill = addShadow(new THREE.Mesh(new THREE.BoxGeometry(42, 2, 1.5), wallMat));
+   667→  wallNSill.position.set(10, 8, ROOM_D / 2);
+   668→  root.add(wallNSill);
+   669→  // Window glass
+   670→  const window = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(38, 27), glassMat));
+   671→  window.position.set(10, 22.5, ROOM_D / 2 - 0.5);
+   672→  root.add(window);
+   673→  // Window frame (mullions)
+   674→  const frameMat = new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.5, roughness: 0.3 });
+   675→  for (const [fx, fw] of [[-10, 0.5], [30, 0.5]] as [number, number][]) {
+   676→    const f = addShadow(new THREE.Mesh(new THREE.BoxGeometry(fw, 27, 1), frameMat));
+   677→    f.position.set(fx, 22.5, ROOM_D / 2 - 0.5);
+   678→    root.add(f);
+   679→  }
+   680→  for (const fy of [9, 36]) {
+   681→    const f = addShadow(new THREE.Mesh(new THREE.BoxGeometry(40, 0.5, 1), frameMat));
+   682→    f.position.set(10, fy, ROOM_D / 2 - 0.5);
+   683→    root.add(f);
+   684→  }
+   685→  // vertical mullion
+   686→  const mullion = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.5, 27, 1), frameMat));
+   687→  mullion.position.set(10, 22.5, ROOM_D / 2 - 0.5);
+   688→  root.add(mullion);
+   689→
+   690→  // East wall (X=60)
+   691→  const wallE = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1, ROOM_H, ROOM_D), wallMat));
+   692→  wallE.position.set(ROOM_W / 2, ROOM_H / 2, 0);
+   693→  root.add(wallE);
+   694→  // West wall (X=-60)
+   695→  const wallW = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1, ROOM_H, ROOM_D), wallMat));
+   696→  wallW.position.set(-ROOM_W / 2, ROOM_H / 2, 0);
+   697→  root.add(wallW);
+   698→
+   699→  // ============================================================
+   700→  // CITY SKYLINE (visible through window, Z > 30)
+   701→  // ============================================================
+   702→  const skylineColors = [0x4a4a55, 0x5a5a65, 0x6a6a78, 0x3a3a45, 0x556070];
+   703→  for (let i = 0; i < 12; i++) {
+   704→    const bw = 10 + Math.random() * 8;
+   705→    const bh = 20 + Math.random() * 50;
+   706→    const bd = 10 + Math.random() * 8;
+   707→    const bx = -35 + i * 7;
+   708→    const bz = 50 + Math.random() * 20;
+   709→    const bMat = new THREE.MeshStandardMaterial({
+   710→      color: skylineColors[i % skylineColors.length], metalness: 0.4, roughness: 0.6,
+   711→    });
+   712→    const b = addShadow(new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), bMat));
+   713→    b.position.set(bx, bh / 2, bz);
+   714→    root.add(b);
+   715→    // lit windows
+   716→    const winMat = new THREE.MeshStandardMaterial({ color: 0xfff4cc, emissive: 0xfff4cc, emissiveIntensity: 0.5 });
+   717→    for (let wy = 2; wy < bh - 2; wy += 4) {
+   718→      for (let wx = -bw / 2 + 2; wx < bw / 2 - 2; wx += 3) {
+   719→        if (Math.random() > 0.4) {
+   720→          const w = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2), winMat);
+   721→          w.position.set(bx + wx, wy, bz + bd / 2 + 0.1);
+   722→          root.add(w);
+   723→        }
+   724→      }
+   725→    }
+   726→  }
+   727→
+   728→  // ============================================================
+   729→  // DESK (L-shaped, against north wall, under window)
+   730→  // Main surface: X[-30,30], Z[20,28] (60 wide, 8 deep)
+   731→  // Side surface: X[-30,-22], Z[10,20] (8 wide, 10 deep)
+   732→  // Top at y=7.5 (0.75m desk height)
+   733→  // ============================================================
+   734→  const DESK_Y = 7.5;
+   735→  const DESK_T = 1; // desktop thickness
+   736→
+   737→  // Main desktop — 50 wide, centered at X=5 so it spans X[-20,30].
+   738→  // This clears the server rack (spans X[-37,-27]) with a 7-unit gap on the left,
+   739→  // and keeps the right edge at X=30. The desk is a clean rectangle (no awkward
+   740→  // L-extension since the PC moved to the main desk).
+   741→  const deskMain = addShadow(new THREE.Mesh(new THREE.BoxGeometry(50, DESK_T, 8), deskMat));
+   742→  deskMain.position.set(5, DESK_Y, 40); // pushed closer to north wall (Z=45), back edge at Z=44
+   743→  deskMain.receiveShadow = true;
+   744→  root.add(deskMain);
+   745→
+   746→  // Desk legs (4 metal box legs at the four corners, 1 unit inset)
+   747→  // Desk spans X[-20,30], Z[36,44].
+   748→  for (const [lx, lz] of [[-18, 37], [28, 37], [-18, 43], [28, 43]]) {
+   749→    const leg = addShadow(new THREE.Mesh(new THREE.BoxGeometry(2, DESK_Y, 2), deskLegMat));
+   750→    leg.position.set(lx, DESK_Y / 2, lz);
+   751→    root.add(leg);
+   752→  }
+   753→
+   754→  // Cable management tray under desk
+   755→  const cableTray = addShadow(new THREE.Mesh(new THREE.BoxGeometry(40, 1, 3), darkPlasticMat));
+   756→  cableTray.position.set(0, DESK_Y - 2, 43);
+   757→  root.add(cableTray);
+   758→
+   759→  // ============================================================
+   760→  // GAMING PC TOWER (on main desk, bottom-right corner)
+   761→  // Position: X=24, Z=24, sitting on the desk surface
+   762→  // Size: 8 wide x 16 tall x 8 deep (~0.8m x 1.6m x 0.8m — mid-tower ATX)
+   763→  // Glass side panel facing -X (toward user, who is at center looking +Z)
+   764→  // Front RGB fans facing -Z (toward user)
+   765→  // ============================================================
+   766→  const PC_X = 24, PC_Y = DESK_Y + 8, PC_Z = 40;
+   767→  const PC_W = 8, PC_H = 16, PC_D = 8;
+   768→
+   769→  // Case frame (carbon fiber)
+   770→  const pcFrame = addShadow(new THREE.Mesh(new THREE.BoxGeometry(PC_W, PC_H, PC_D), carbonMat));
+   771→  pcFrame.position.set(PC_X, PC_Y, PC_Z);
+   772→  root.add(pcFrame);
+   773→
+   774→  // Glass side panel (facing -X, toward user at center)
+   775→  const glassPanel = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.3, PC_H - 2, PC_D - 2), glassPanelMat));
+   776→  glassPanel.position.set(PC_X - PC_W / 2 + 0.15, PC_Y, PC_Z);
+   777→  root.add(glassPanel);
+   778→
+   779→  // === Internal components (visible through glass) ===
+   780→  // Motherboard backplate (vertical, against +X wall of case)
+   781→  const mobo = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.5, PC_H - 4, PC_D - 3), new THREE.MeshStandardMaterial({ color: 0x0a3a2a, metalness: 0.3, roughness: 0.6 })));
+   782→  mobo.position.set(PC_X + PC_W / 2 - 1, PC_Y, PC_Z);
+   783→  root.add(mobo);
+   784→
+   785→  // GPU (graphics card) — large horizontal card, RGB shroud
+   786→  const gpu = addShadow(new THREE.Mesh(new THREE.BoxGeometry(5, 2, PC_D - 3), darkPlasticMat));
+   787→  gpu.position.set(PC_X + 1, PC_Y - 1, PC_Z);
+   788→  root.add(gpu);
+   789→  // GPU RGB strip
+   790→  const gpuRgb = addShadow(new THREE.Mesh(new THREE.BoxGeometry(5, 0.4, 0.4), rgbMagentaMat));
+   791→  gpuRgb.position.set(PC_X + 1, PC_Y - 2, PC_Z);
+   792→  root.add(gpuRgb);
+   793→  // GPU fans (2 fans visible from side)
+   794→  for (const fanX of [PC_X + 2, PC_X - 1]) {
+   795→    const fanHousing = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.4, 16), darkPlasticMat));
+   796→    fanHousing.rotation.z = Math.PI / 2;
+   797→    fanHousing.position.set(fanX, PC_Y - 1, PC_Z - 1);
+   798→    root.add(fanHousing);
+   799→    const fanBlades = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.2, 8), lightPlasticMat));
+   800→    fanBlades.rotation.z = Math.PI / 2;
+   801→    fanBlades.position.set(fanX - 0.3, PC_Y - 1, PC_Z - 1);
+   802→    root.add(fanBlades);
+   803→  }
+   804→
+   805→  // CPU cooler (tower cooler with RGB fan)
+   806→  const cpuBlock = addShadow(new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2), darkPlasticMat));
+   807→  cpuBlock.position.set(PC_X + 2, PC_Y + 3, PC_Z);
+   808→  root.add(cpuBlock);
+   809→  const coolerRad = addShadow(new THREE.Mesh(new THREE.BoxGeometry(3, 6, 3), aluminMat));
+   810→  coolerRad.position.set(PC_X, PC_Y + 3, PC_Z);
+   811→  root.add(coolerRad);
+   812→  const coolerFan = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.4, 5, 3), darkPlasticMat));
+   813→  coolerFan.position.set(PC_X - 1.5, PC_Y + 3, PC_Z);
+   814→  root.add(coolerFan);
+   815→  // RGB ring on cooler fan
+   816→  const coolerRgb = addShadow(new THREE.Mesh(new THREE.RingGeometry(1.4, 1.6, 16), rgbCyanMat));
+   817→  coolerRgb.position.set(PC_X - 1.7, PC_Y + 3, PC_Z);
+   818→  coolerRgb.rotation.y = Math.PI / 2;
+   819→  root.add(coolerRgb);
+   820→
+   821→  // RAM sticks (2x, vertical, with RGB tops)
+   822→  for (const ramZ of [PC_Z - 1, PC_Z + 1]) {
+   823→    const ram = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 1), darkPlasticMat));
+   824→    ram.position.set(PC_X + 2.5, PC_Y + 4, ramZ);
+   825→    root.add(ram);
+   826→    const ramRgb = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 1.1), rgbPurpleMat));
+   827→    ramRgb.position.set(PC_X + 2.5, PC_Y + 6, ramZ);
+   828→    root.add(ramRgb);
+   829→  }
+   830→
+   831→  // PSU shroud (bottom horizontal box)
+   832→  const psu = addShadow(new THREE.Mesh(new THREE.BoxGeometry(PC_W - 1, 3, PC_D - 2), darkPlasticMat));
+   833→  psu.position.set(PC_X, PC_Y - 5, PC_Z);
+   834→  root.add(psu);
+   835→
+   836→  // RGB strip along bottom of case
+   837→  const bottomRgb = addShadow(new THREE.Mesh(new THREE.BoxGeometry(PC_W - 1, 0.3, 0.3), rgbGreenMat));
+   838→  bottomRgb.position.set(PC_X, PC_Y - PC_H / 2 + 0.3, PC_Z);
+   839→  root.add(bottomRgb);
+   840→
+   841→  // Front panel (facing -Z, toward user) with RGB fans (3x)
+   842→  for (let i = 0; i < 3; i++) {
+   843→    const fanY = PC_Y + 4 - i * 4;
+   844→    const fanH = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.8, 16), darkPlasticMat));
+   845→    fanH.rotation.x = Math.PI / 2;
+   846→    fanH.position.set(PC_X, fanY, PC_Z - PC_D / 2 + 0.3);
+   847→    root.add(fanH);
+   848→    const fanRgb = addShadow(new THREE.Mesh(new THREE.RingGeometry(1.1, 1.4, 16), [rgbMagentaMat, rgbCyanMat, rgbPurpleMat][i]));
+   849→    fanRgb.position.set(PC_X, fanY, PC_Z - PC_D / 2 + 0.7);
+   850→    root.add(fanRgb);
+   851→    // fan blades
+   852→    const blades = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.2, 7), lightPlasticMat));
+   853→    blades.rotation.x = Math.PI / 2;
+   854→    blades.position.set(PC_X, fanY, PC_Z - PC_D / 2 + 0.5);
+   855→    root.add(blades);
+   856→  }
+   857→
+   858→  // Power button (top of case)
+   859→  const powerBtn = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.2, 12), lightPlasticMat));
+   860→  powerBtn.position.set(PC_X + 2, PC_Y + PC_H / 2 + 0.1, PC_Z);
+   861→  root.add(powerBtn);
+   862→
+   863→  // PC RGB point lights (subtle glow)
+   864→  const pcRgbLight = new THREE.PointLight(0x8338ec, 0.5, 20, 2);
+   865→  pcRgbLight.position.set(PC_X - 2, PC_Y, PC_Z);
+   866→  root.add(pcRgbLight);
+   867→  const pcRgbLight2 = new THREE.PointLight(0x00d9ff, 0.3, 15, 2);
+   868→  pcRgbLight2.position.set(PC_X, PC_Y - 3, PC_Z + 2);
+   869→  root.add(pcRgbLight2);
+   870→
+   871→  // ============================================================
+   872→  // SERVER RACK (at back of room, against north wall)
+   873→  // Position: X=-32, Z=28, floor-to-near-ceiling
+   874→  // A proper 19" server rack with multiple 1U/2U servers, switches, and patch panel
+   875→  // ============================================================
+   876→  const SR_X = -32, SR_Z = 28;
+   877→  const SR_W = 10, SR_H = 24, SR_D = 8;
+   878→  const rackMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.7, roughness: 0.35 });
+   879→  const rackFrameMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.6, roughness: 0.4 });
+   880→  const serverMat = new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.6, roughness: 0.4 });
+   881→
+   882→  // Rack frame (4 vertical rails + top/bottom)
+   883→  for (const fx of [SR_X - SR_W / 2, SR_X + SR_W / 2]) {
+   884→    for (const fz of [SR_Z - SR_D / 2, SR_Z + SR_D / 2]) {
+   885→      const rail = addShadow(new THREE.Mesh(
+   886→        new THREE.BoxGeometry(0.5, SR_H, 0.5), rackFrameMat
+   887→      ));
+   888→      rail.position.set(fx, SR_H / 2, fz);
+   889→      root.add(rail);
+   890→    }
+   891→  }
+   892→  // Top and bottom plates
+   893→  for (const fy of [0, SR_H]) {
+   894→    const plate = addShadow(new THREE.Mesh(
+   895→      new THREE.BoxGeometry(SR_W, 0.5, SR_D), rackFrameMat
+   896→    ));
+   897→    plate.position.set(SR_X, fy, SR_Z);
+   898→    root.add(plate);
+   899→  }
+   900→  // Side panels (perforated metal look — solid color)
+   901→  const sidePanelL = addShadow(new THREE.Mesh(
+   902→    new THREE.BoxGeometry(0.3, SR_H - 1, SR_D - 0.5), rackMat
+   903→  ));
+   904→  sidePanelL.position.set(SR_X - SR_W / 2 + 0.15, SR_H / 2, SR_Z);
+   905→  root.add(sidePanelL);
+   906→  const sidePanelR = addShadow(new THREE.Mesh(
+   907→    new THREE.BoxGeometry(0.3, SR_H - 1, SR_D - 0.5), rackMat
+   908→  ));
+   909→  sidePanelR.position.set(SR_X + SR_W / 2 - 0.15, SR_H / 2, SR_Z);
+   910→  root.add(sidePanelR);
+   911→  // Back panel
+   912→  const backPanel = addShadow(new THREE.Mesh(
+   913→    new THREE.BoxGeometry(SR_W - 0.5, SR_H - 1, 0.3), rackMat
+   914→  ));
+   915→  backPanel.position.set(SR_X, SR_H / 2, SR_Z + SR_D / 2 - 0.15);
+   916→  root.add(backPanel);
+   917→
+   918→  // === Rack-mounted servers and equipment ===
+   919→  // Each unit: a box filling the rack width, with a colored front face and LED indicators
+   920→  // Units are stacked from bottom to top with small gaps
+   921→  type RackUnit = { name: string; height: number; ledColors: number[]; frontColor: number };
+   922→  const rackUnits: RackUnit[] = [
+   923→    { name: 'UPS',           height: 2, ledColors: [0x00ff00, 0x00ff00, 0xffaa00], frontColor: 0x2a2a30 }, // 2U UPS at bottom
+   924→    { name: 'Server 1',      height: 1, ledColors: [0x00ff00, 0x00ff00],            frontColor: 0x3a3a40 }, // 1U server
+   925→    { name: 'Server 2',      height: 1, ledColors: [0x00ff00, 0x00ff00],            frontColor: 0x3a3a40 }, // 1U server
+   926→    { name: 'Server 3',      height: 2, ledColors: [0x00ff00, 0xff0000, 0x00ff00],  frontColor: 0x4a4a52 }, // 2U server
+   927→    { name: 'NAS Storage',   height: 2, ledColors: [0x00ff00, 0x00ff00, 0x00ff00, 0xffaa00], frontColor: 0x3a3a44 }, // 2U NAS with drive bays
+   928→    { name: 'Switch',        height: 1, ledColors: [0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00, 0x00ff00], frontColor: 0x2a2a30 }, // 1U switch (8 port LEDs)
+   929→    { name: 'Patch Panel',   height: 1, ledColors: [],                              frontColor: 0x5a5a62 }, // 1U patch panel (no LEDs)
+   930→    { name: 'Server 4',      height: 2, ledColors: [0x00ff00, 0x00ff00, 0xff0000],  frontColor: 0x4a4a52 }, // 2U server
+   931→    { name: 'KVM',           height: 1, ledColors: [0x00ff00],                       frontColor: 0x3a3a40 }, // 1U KVM
+   932→  ];
+   933→
+   934→  // Stack from bottom up. Each rack unit is 1.2 units tall (1U ≈ 0.12m at 10u/m... scaled up for visibility)
+   935→  const unitHeight = 1.5; // 1U = 1.5 units
+   936→  const gap = 0.2;
+   937→  let currentY = 1.5; // start above bottom plate
+   938→
+   939→  for (const unit of rackUnits) {
+   940→    const unitH = unit.height * unitHeight;
+   941→    // Server body
+   942→    const body = addShadow(new THREE.Mesh(
+   943→      new THREE.BoxGeometry(SR_W - 1, unitH - gap, SR_D - 1),
+   944→      serverMat
+   945→    ));
+   946→    body.position.set(SR_X, currentY + unitH / 2, SR_Z);
+   947→    root.add(body);
+   948→    // Front face (visible from -Z, toward user)
+   949→    const front = addShadow(new THREE.Mesh(
+   950→      new THREE.BoxGeometry(SR_W - 1.5, unitH - gap, 0.2),
+   951→      new THREE.MeshStandardMaterial({ color: unit.frontColor, metalness: 0.5, roughness: 0.4 })
+   952→    ));
+   953→    front.position.set(SR_X, currentY + unitH / 2, SR_Z - SR_D / 2 + 0.4);
+   954→    root.add(front);
+   955→    // LED indicators (small emissive dots on the front face, left side)
+   956→    for (let led = 0; led < unit.ledColors.length; led++) {
+   957→      const ledColor = unit.ledColors[led];
+   958→      const ledMesh = addShadow(new THREE.Mesh(
+   959→        new THREE.SphereGeometry(0.15, 8, 6),
+   960→        new THREE.MeshStandardMaterial({
+   961→          color: ledColor, emissive: ledColor, emissiveIntensity: 1.2, metalness: 0.2, roughness: 0.4
+   962→        })
+   963→      ));
+   964→      ledMesh.position.set(
+   965→        SR_X - SR_W / 2 + 1.2 + led * 0.5,
+   966→        currentY + unitH / 2,
+   967→        SR_Z - SR_D / 2 + 0.3
+   968→      );
+   969→      root.add(ledMesh);
+   970→    }
+   971→    // Drive bays for NAS (small rectangles on front)
+   972→    if (unit.name === 'NAS Storage') {
+   973→      for (let bay = 0; bay < 4; bay++) {
+   974→        const drive = addShadow(new THREE.Mesh(
+   975→          new THREE.BoxGeometry(1.5, unitH - gap - 0.6, 0.15),
+   976→          new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.4, roughness: 0.5 })
+   977→        ));
+   978→        drive.position.set(
+   979→          SR_X - 2 + bay * 1.8,
+   980→          currentY + unitH / 2,
+   981→          SR_Z - SR_D / 2 + 0.32
+   982→        );
+   983→        root.add(drive);
+   984→        // Drive LED
+   985→        const driveLed = addShadow(new THREE.Mesh(
+   986→          new THREE.SphereGeometry(0.1, 6, 5),
+   987→          new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 1.0 })
+   988→        ));
+   989→        driveLed.position.set(
+   990→          SR_X - 2 + bay * 1.8,
+   991→          currentY + unitH / 2 + 0.4,
+   992→          SR_Z - SR_D / 2 + 0.25
+   993→        );
+   994→        root.add(driveLed);
+   995→      }
+   996→    }
+   997→    // Rack-mount handles (2 small bars on the front for servers)
+   998→    if (unit.name.startsWith('Server')) {
+   999→      for (const hx of [SR_X - SR_W / 2 + 1.5, SR_X + SR_W / 2 - 1.5]) {
+  1000→        const handle = addShadow(new THREE.Mesh(
+  1001→          new THREE.BoxGeometry(0.4, 0.3, 0.4),
+  1002→          new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.5, roughness: 0.5 })
+  1003→        ));
+  1004→        handle.position.set(hx, currentY + unitH / 2, SR_Z - SR_D / 2 + 0.3);
+  1005→        root.add(handle);
+  1006→      }
+  1007→    }
+  1008→    currentY += unitH;
+  1009→  }
+  1010→
+  1011→  // Cable management (vertical cable bundle on the side of the rack)
+  1012→  const rackCableBundle = addShadow(new THREE.Mesh(
+  1013→    new THREE.CylinderGeometry(0.5, 0.5, SR_H - 2, 8),
+  1014→    new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.8 })
+  1015→  ));
+  1016→  rackCableBundle.position.set(SR_X - SR_W / 2 - 0.5, SR_H / 2, SR_Z);
+  1017→  root.add(rackCableBundle);
+  1018→
+  1019→  // Server rack status LED strip (top of rack)
+  1020→  const rackStatusLed = addShadow(new THREE.Mesh(
+  1021→    new THREE.BoxGeometry(SR_W - 1, 0.2, 0.2),
+  1022→    new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 1.0 })
+  1023→  ));
+  1024→  rackStatusLed.position.set(SR_X, SR_H - 0.5, SR_Z - SR_D / 2 + 0.3);
+  1025→  root.add(rackStatusLed);
+  1026→
+  1027→  // Server room glow light (subtle green/white from LEDs)
+  1028→  const serverGlow = new THREE.PointLight(0x80ff80, 0.4, 30, 2);
+  1029→  serverGlow.position.set(SR_X + 2, SR_H / 2, SR_Z - 3);
+  1030→  root.add(serverGlow);
+  1031→
+  1032→  // ============================================================
+  1033→  // MONITORS (3 monitors, each on its own stand sitting ON the desk)
+  1034→  // Center: ultrawide (16 wide x 7 tall, ~1.6m) — flat, facing user
+  1035→  // Left: standard (11 wide x 7 tall, ~1.1m) — angled ~18° toward user
+  1036→  // Right: standard (11 wide x 7 tall, ~1.1m) — angled ~-18° toward user
+  1037→  // All bases at Z=26 (back of desk, away from keyboard at Z=20)
+  1038→  // Each monitor has: compact base on desk + slim neck + monitor head with slight downward tilt
+  1039→  // ============================================================
+  1040→
+  1041→  // Helper: build a full monitor stand + monitor
+  1042→  // baseX/Z = where the stand base sits on the desk
+  1043→  // monW/monH = screen dimensions (realistic: 16 wide = 1.6m ultrawide, 11 wide = 1.1m standard)
+  1044→  // yAngle = Y rotation (radians) for side monitors angled toward user
+  1045→  // xTilt = X rotation (radians) for slight downward tilt
+  1046→  // screenMat = the emissive screen material
+  1047→  function buildMonitor(
+  1048→    baseX: number, baseZ: number,
+  1049→    monW: number, monH: number,
+  1050→    yAngle: number, xTilt: number,
+  1051→    screenMat: THREE.Material,
+  1052→    neckHeight: number,
+  1053→  ) {
+  1054→    const monGroup = new THREE.Group();
+  1055→    monGroup.position.set(baseX, DESK_Y, baseZ);
+  1056→    monGroup.rotation.y = yAngle;
+  1057→
+  1058→    // --- Stand base (compact oval disc on desk, ~0.4m diameter) ---
+  1059→    const standBase = addShadow(new THREE.Mesh(
+  1060→      new THREE.CylinderGeometry(2, 2.3, 0.5, 24),
+  1061→      standMat
+  1062→    ));
+  1063→    standBase.position.set(0, 0.25, 0);
+  1064→    monGroup.add(standBase);
+  1065→
+  1066→    // --- Stand neck (slim vertical post, slightly tapered) ---
+  1067→    // Neck is BEHIND the monitor (local +Z = back of monitor, toward the wall).
+  1068→    // The screen faces local -Z (toward the chair/user at lower Z).
+  1069→    const neckBottomY = 0.5;
+  1070→    const neck = addShadow(new THREE.Mesh(
+  1071→      new THREE.CylinderGeometry(0.5, 0.7, neckHeight, 12),
+  1072→      standMat
+  1073→    ));
+  1074→    neck.position.set(0, neckBottomY + neckHeight / 2, 0.5); // neck behind monitor center (+Z)
+  1075→    monGroup.add(neck);
+  1076→
+  1077→    // --- VESA mount plate (small rectangle where neck meets back of monitor) ---
+  1078→    const vesa = addShadow(new THREE.Mesh(
+  1079→      new THREE.BoxGeometry(2, 2, 0.4),
+  1080→      standMat
+  1081→    ));
+  1082→    const monCenterY = neckBottomY + neckHeight;
+  1083→    vesa.position.set(0, monCenterY, 0.7); // VESA on back of monitor (+Z)
+  1084→    monGroup.add(vesa);
+  1085→
+  1086→    // --- Monitor head group (so we can tilt the whole head around its center) ---
+  1087→    const headGroup = new THREE.Group();
+  1088→    headGroup.position.set(0, monCenterY, 0);
+  1089→    headGroup.rotation.x = xTilt; // slight downward tilt
+  1090→
+  1091→    // Bezel (slim frame around screen)
+  1092→    const bezel = addShadow(new THREE.Mesh(
+  1093→      new THREE.BoxGeometry(monW + 0.6, monH + 0.6, 0.8),
+  1094→      bezelMat
+  1095→    ));
+  1096→    headGroup.add(bezel);
+  1097→
+  1098→    // Screen surface — front face points toward -Z (toward the chair/user).
+  1099→    // THREE.PlaneGeometry faces +Z by default, so rotate 180° around Y to face -Z.
+  1100→    // Position the screen at local -Z (front of monitor, away from the neck/VESA).
+  1101→    const screen = addShadow(new THREE.Mesh(
+  1102→      new THREE.PlaneGeometry(monW, monH),
+  1103→      screenMat
+  1104→    ));
+  1105→    screen.position.set(0, 0, -0.45); // front of bezel (toward user)
+  1106→    screen.rotation.y = Math.PI;       // flip to face -Z (toward chair)
+  1107→    headGroup.add(screen);
+  1108→
+  1109→    // Branding strip at bottom of bezel front face (with the screen)
+  1110→    const branding = addShadow(new THREE.Mesh(
+  1111→      new THREE.BoxGeometry(monW * 0.12, 0.25, 0.05),
+  1112→      new THREE.MeshStandardMaterial({ color: 0xa8acb4, metalness: 0.8, roughness: 0.3 })
+  1113→    ));
+  1114→    branding.position.set(0, -monH / 2 - 0.25, -0.45);
+  1115→    headGroup.add(branding);
+  1116→
+  1117→    monGroup.add(headGroup);
+  1118→    root.add(monGroup);
+  1119→
+  1120→    return { monGroup, headGroup, monCenterY };
+  1121→  }
+  1122→
+  1123→  // --- Center monitor (ultrawide, flat, taller neck so it's at eye level) ---
+  1124→  // 16 wide × 7 tall (~1.6m × 0.7m — proportional 21:9 ultrawide)
+  1125→  const centerMonW = 16, centerMonH = 7;
+  1126→  const centerInfo = buildMonitor(
+  1127→    0, 42,                    // base at back of desk (pushed closer to wall)
+  1128→    centerMonW, centerMonH,   // screen size
+  1129→    0,                        // no Y rotation (facing user)
+  1130→    -0.06,                    // slight downward tilt (~3.4°)
+  1131→    centerScreenMat,          // IDE code screen
+  1132→    11,                       // neck height
+  1133→  );
+  1134→
+  1135→  // --- Left monitor (angled toward user, flanking center) ---
+  1136→  // 11 wide × 7 tall (~1.1m × 0.7m — proportional 16:9 standard)
+  1137→  // Screen faces local -Z. To angle the left monitor toward the user (who is at lower-Z, center-X),
+  1138→  // we rotate the monitor clockwise around Y (negative rotation) so the screen turns to face
+  1139→  // the lower-left (toward the user). Negative Y rotation points local -Z toward (-sin, -cos) = (-, -).
+  1140→  const sideMonW = 11, sideMonH = 7;
+  1141→  const leftInfo = buildMonitor(
+  1142→    -14, 42,                  // base shifted left, at back of desk
+  1143→    sideMonW, sideMonH,
+  1144→    -0.45,                    // ~-26° Y rotation — screen faces lower-left (toward user)
+  1145→    -0.06,                    // slight downward tilt
+  1146→    leftScreenMat,            // dashboard screen
+  1147→    10,                       // neck height (slightly shorter than center)
+  1148→  );
+  1149→
+  1150→  // --- Right monitor (angled toward user, flanking center) ---
+  1151→  // Positive Y rotation points local -Z toward (+sin, -cos) = (+, -) = lower-right (toward user).
+  1152→  const rightInfo = buildMonitor(
+  1153→    14, 42,                   // base shifted right, at back of desk
+  1154→    sideMonW, sideMonH,
+  1155→    0.45,                     // ~+26° Y rotation — screen faces lower-right (toward user)
+  1156→    -0.06,                    // slight downward tilt
+  1157→    rightScreenMat,           // wallpaper screen
+  1158→    10,                       // neck height
+  1159→  );
+  1160→
+  1161→  // Monitor screen glow lights (subtle backlight bleed)
+  1162→  const centerGlow = new THREE.PointLight(0x6080ff, 0.4, 25, 2);
+  1163→  centerGlow.position.set(0, DESK_Y + 11, 41);
+  1164→  root.add(centerGlow);
+  1165→  const leftGlow = new THREE.PointLight(0x80a060, 0.25, 18, 2);
+  1166→  leftGlow.position.set(-14, DESK_Y + 10, 41);
+  1167→  root.add(leftGlow);
+  1168→  const rightGlow = new THREE.PointLight(0x6080a0, 0.25, 18, 2);
+  1169→  rightGlow.position.set(14, DESK_Y + 10, 41);
+  1170→  root.add(rightGlow);
+  1171→
+  1172→  // ============================================================
+  1173→  // KEYBOARD (mechanical, full-size, on desk in front of center monitor)
+  1174→  // Scaled down to realistic size (~0.45m wide) and rotated 180° so the
+  1175→  // number row faces the monitor (+Z) and the spacebar faces the player (-Z).
+  1176→  // ============================================================
+  1177→  const KB_W = 18, KB_D = 6.5;
+  1178→  const kbFrame = addShadow(new THREE.Mesh(new THREE.BoxGeometry(KB_W, 1.5, KB_D), kbFrameMat));
+  1179→  kbFrame.position.set(0, DESK_Y + 0.75, 36);
+  1180→  root.add(kbFrame);
+  1181→  // Keycap surface (textured with full QWERTY layout, rotated 180° to face the chair)
+  1182→  const keycaps = addShadow(new THREE.Mesh(new THREE.BoxGeometry(KB_W - 1, 0.5, KB_D - 1), keycapMat));
+  1183→  keycaps.position.set(0, DESK_Y + 1.5, 36);
+  1184→  keycaps.rotation.y = Math.PI; // flip 180° so number row faces +Z (monitor), spacebar faces -Z (player)
+  1185→  root.add(keycaps);
+  1186→  // RGB underglow
+  1187→  const kbRgb = addShadow(new THREE.Mesh(new THREE.BoxGeometry(KB_W - 2, 0.3, 0.3), rgbCyanMat));
+  1188→  kbRgb.position.set(0, DESK_Y + 0.3, 36 - KB_D / 2 + 0.5);
+  1189→  root.add(kbRgb);
+  1190→  const kbRgb2 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(KB_W - 2, 0.3, 0.3), rgbMagentaMat));
+  1191→  kbRgb2.position.set(0, DESK_Y + 0.3, 36 + KB_D / 2 - 0.5);
+  1192→  root.add(kbRgb2);
+  1193→  // Keyboard RGB light
+  1194→  const kbLight = new THREE.PointLight(0x00d9ff, 0.3, 15, 2);
+  1195→  kbLight.position.set(0, DESK_Y + 1, 33);
+  1196→  root.add(kbLight);
+  1197→
+  1198→  // ============================================================
+  1199→  // MOUSE (gaming mouse, right of keyboard)
+  1200→  // ============================================================
+  1201→  const mouseBody = addShadow(new THREE.Mesh(new THREE.SphereGeometry(2, 12, 8), mouseMat));
+  1202→  mouseBody.scale.set(1, 0.5, 1.5);
+  1203→  mouseBody.position.set(14, DESK_Y + 1.2, 36);
+  1204→  root.add(mouseBody);
+  1205→  // Mouse wheel
+  1206→  const mouseWheel = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1, 8), rgbMagentaMat));
+  1207→  mouseWheel.rotation.z = Math.PI / 2;
+  1208→  mouseWheel.position.set(14, DESK_Y + 1.8, 19.5);
+  1209→  root.add(mouseWheel);
+  1210→  // Mouse RGB logo
+  1211→  const mouseRgb = addShadow(new THREE.Mesh(new THREE.CircleGeometry(0.4, 8), rgbPurpleMat));
+  1212→  mouseRgb.position.set(14, DESK_Y + 1.6, 19);
+  1213→  mouseRgb.rotation.x = -Math.PI / 2;
+  1214→  root.add(mouseRgb);
+  1215→
+  1216→  // ============================================================
+  1217→  // MOUSEPAD (large, under keyboard and mouse)
+  1218→  // ============================================================
+  1219→  const mousepad = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(40, 12), mousepadMat));
+  1220→  mousepad.rotation.x = -Math.PI / 2;
+  1221→  mousepad.position.set(0, DESK_Y + 0.05, 36);
+  1222→  root.add(mousepad);
+  1223→
+  1224→  // ============================================================
+  1225→  // HEADPHONES (on left side of desk, on a stand)
+  1226→  // Realistic size: headband ~0.18m wide arc, ear cups ~0.09m diameter
+  1227→  // ============================================================
+  1228→  // Stand
+  1229→  const hpStandBase = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2, 0.6, 16), darkPlasticMat));
+  1230→  hpStandBase.position.set(-20, DESK_Y + 0.3, 22);
+  1231→  root.add(hpStandBase);
+  1232→  const hpStandPole = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 3.5, 8), darkPlasticMat));
+  1233→  hpStandPole.position.set(-20, DESK_Y + 2.3, 22);
+  1234→  root.add(hpStandPole);
+  1235→  const hpStandTop = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.5, 0.5, 12), darkPlasticMat));
+  1236→  hpStandTop.position.set(-20, DESK_Y + 4.3, 22);
+  1237→  root.add(hpStandTop);
+  1238→  // Headphones on stand — headband is a half-torus (radius 1.8 = ~0.18m arc, tube 0.18)
+  1239→  const headband = addShadow(new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.18, 8, 16, Math.PI), headbandMat));
+  1240→  headband.position.set(-20, DESK_Y + 4, 22);
+  1241→  headband.rotation.x = Math.PI / 2;
+  1242→  headband.rotation.z = Math.PI;
+  1243→  root.add(headband);
+  1244→  // Left ear cup (radius 0.9 = ~0.09m diameter, depth 0.7)
+  1245→  const earCupL = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.7, 16), earCupMat));
+  1246→  earCupL.rotation.z = Math.PI / 2;
+  1247→  earCupL.position.set(-21.8, DESK_Y + 4, 22);
+  1248→  root.add(earCupL);
+  1249→  const earPadL = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.9, 16), earPadMat));
+  1250→  earPadL.rotation.z = Math.PI / 2;
+  1251→  earPadL.position.set(-21.6, DESK_Y + 4, 22);
+  1252→  root.add(earPadL);
+  1253→  // Right ear cup
+  1254→  const earCupR = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.7, 16), earCupMat));
+  1255→  earCupR.rotation.z = Math.PI / 2;
+  1256→  earCupR.position.set(-18.2, DESK_Y + 4, 22);
+  1257→  root.add(earCupR);
+  1258→  const earPadR = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.9, 16), earPadMat));
+  1259→  earPadR.rotation.z = Math.PI / 2;
+  1260→  earPadR.position.set(-18.4, DESK_Y + 4, 22);
+  1261→  root.add(earPadR);
+  1262→  // RGB rings on ear cups (outer edge)
+  1263→  const earRgbL = addShadow(new THREE.Mesh(new THREE.RingGeometry(0.95, 1.05, 16), rgbGreenMat));
+  1264→  earRgbL.position.set(-22.2, DESK_Y + 4, 22);
+  1265→  earRgbL.rotation.y = Math.PI / 2;
+  1266→  root.add(earRgbL);
+  1267→  const earRgbR = addShadow(new THREE.Mesh(new THREE.RingGeometry(0.95, 1.05, 16), rgbGreenMat));
+  1268→  earRgbR.position.set(-17.8, DESK_Y + 4, 22);
+  1269→  earRgbR.rotation.y = Math.PI / 2;
+  1270→  root.add(earRgbR);
+  1271→
+  1272→  // ============================================================
+  1273→  // DESK LAMP (articulated, on right side of desk)
+  1274→  // ============================================================
+  1275→  const lampBase = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(3, 3.5, 1, 16), lampMat));
+  1276→  lampBase.position.set(22, DESK_Y + 0.5, 24);
+  1277→  root.add(lampBase);
+  1278→  const lampArmLower = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 10, 8), lampMat));
+  1279→  lampArmLower.position.set(22, DESK_Y + 5.5, 24);
+  1280→  lampArmLower.rotation.z = 0.3;
+  1281→  root.add(lampArmLower);
+  1282→  const lampJoint = addShadow(new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), lampMat));
+  1283→  lampJoint.position.set(24.8, DESK_Y + 10, 24);
+  1284→  root.add(lampJoint);
+  1285→  const lampArmUpper = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 8, 8), lampMat));
+  1286→  lampArmUpper.position.set(21, DESK_Y + 12, 24);
+  1287→  lampArmUpper.rotation.z = -0.5;
+  1288→  root.add(lampArmUpper);
+  1289→  const lampHead = addShadow(new THREE.Mesh(new THREE.ConeGeometry(2.5, 3, 12), lampMat));
+  1290→  lampHead.position.set(18, DESK_Y + 13, 24);
+  1291→  lampHead.rotation.z = Math.PI / 2 + 0.3;
+  1292→  root.add(lampHead);
+  1293→  // Lamp light (emissive disc inside head)
+  1294→  const lampBulb = addShadow(new THREE.Mesh(new THREE.CircleGeometry(2, 12), lampShadeMat));
+  1295→  lampBulb.position.set(16.5, DESK_Y + 12.5, 24);
+  1296→  lampBulb.rotation.z = 0.3;
+  1297→  root.add(lampBulb);
+  1298→  const lampLight = new THREE.PointLight(0xfff0a0, 0.8, 30, 2);
+  1299→  lampLight.position.set(15, DESK_Y + 11, 24);
+  1300→  root.add(lampLight);
+  1301→
+  1302→  // ============================================================
+  1303→  // WALL-MOUNTED SPEAKERS (4x in all 4 top corners of the room, angled downward)
+  1304→  // Detailed bookshelf speakers with: beveled cabinet edges, dome tweeter with
+  1305→  // waveguide, woofer with cone/dust cap/surround, mounting screws, grille frame,
+  1306→  // branding badge, bass reflex port, binding posts on back, RGB accent.
+  1307→  // ============================================================
+  1308→  const corners: Array<{ x: number; z: number; y: number; yaw: number; label: string }> = [
+  1309→    // Speakers in all 4 top corners of the larger room (120x90x45).
+  1310→    // Mounted high on the walls (Y=33) pointing toward the room center (0, 8, 0).
+  1311→    // Speaker driver face is at local -Z. After rotation.y = yaw, local -Z maps to
+  1312→    // world (-sin(yaw), 0, -cos(yaw)). We want each speaker to face the room center.
+  1313→    //   FL (-57,-43) must face +X+Z → yaw = -3π/4
+  1314→    //   FR ( 57,-43) must face -X+Z → yaw = 3π/4
+  1315→    //   BL (-57, 43) must face +X-Z → yaw = -π/4 (raised to clear server rack top at Y=24)
+  1316→    //   BR ( 57, 43) must face -X-Z → yaw = π/4
+  1317→    { x: -57, z: -43, y: 33, yaw: -Math.PI * 0.75,    label: 'FL' },  // front-left, faces +X+Z (toward room center)
+  1318→    { x:  57, z: -43, y: 33, yaw: Math.PI * 0.75,     label: 'FR' },  // front-right, faces -X+Z
+  1319→    { x: -57, z:  43, y: 36, yaw: -Math.PI / 4,       label: 'BL' },  // back-left (raised to clear server rack), faces +X-Z
+  1320→    { x:  57, z:  43, y: 33, yaw: Math.PI / 4,        label: 'BR' },  // back-right, faces -X-Z
+  1321→  ];
+  1322→
+  1323→  // Driver detail materials (reused across all 4 speakers)
+  1324→  const coneMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.2, roughness: 0.7 }); // woofer cone (dark)
+  1325→  const dustCapMat = new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.3, roughness: 0.5 }); // dust cap (slightly lighter)
+  1326→  const surroundMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3e, metalness: 0.1, roughness: 0.8 }); // foam surround (gray)
+  1327→  const tweeterDomeMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c8, metalness: 0.9, roughness: 0.15 }); // silk dome tweeter (silver)
+  1328→  const tweeterFlangeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.4, roughness: 0.5 }); // tweeter flange (black)
+  1329→  const screwMat = new THREE.MeshStandardMaterial({ color: 0x888892, metalness: 0.85, roughness: 0.3 }); // mounting screws (silver)
+  1330→  const badgeMat = new THREE.MeshStandardMaterial({ color: 0xa8acb4, metalness: 0.8, roughness: 0.25 }); // branding badge (brushed silver)
+  1331→  const grilleFrameMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.2, roughness: 0.7 }); // grille frame (dark)
+  1332→  const portMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.1, roughness: 0.9 }); // port tube (black)
+  1333→  const terminalMat = new THREE.MeshStandardMaterial({ color: 0xc09545, metalness: 0.9, roughness: 0.25 }); // binding posts (brass)
+  1334→  const edgeTrimMat = new THREE.MeshStandardMaterial({ color: 0x2a1810, metalness: 0.1, roughness: 0.7 }); // cabinet edge trim (dark wood)
+  1335→
+  1336→  for (const c of corners) {
+  1337→    const spkGroup = new THREE.Group();
+  1338→    spkGroup.position.set(c.x, c.y, c.z);
+  1339→    spkGroup.rotation.y = c.yaw;
+  1340→    spkGroup.rotation.x = -0.5; // ~29° downward tilt
+  1341→
+  1342→    // --- Mounting bracket (metal plate against the wall) ---
+  1343→    const bracket = addShadow(new THREE.Mesh(
+  1344→      new THREE.BoxGeometry(0.4, 3, 3),
+  1345→      new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.7, roughness: 0.3 })
+  1346→    ));
+  1347→    bracket.position.set(0, 0, 2.2); // behind the speaker (toward wall)
+  1348→    spkGroup.add(bracket);
+  1349→    // Bracket mounting screws (4x on the bracket plate)
+  1350→    for (const [bx, bz] of [[-1.2, 1.2], [1.2, 1.2], [-1.2, -1.2], [1.2, -1.2]]) {
+  1351→      const bscrew = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 8), screwMat));
+  1352→      bscrew.rotation.x = Math.PI / 2;
+  1353→      bscrew.position.set(bx, bz, 2.05);
+  1354→      spkGroup.add(bscrew);
+  1355→    }
+  1356→    // Articulated arm (from bracket to speaker body)
+  1357→    const arm = addShadow(new THREE.Mesh(
+  1358→      new THREE.BoxGeometry(0.6, 0.6, 1.5),
+  1359→      new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.7, roughness: 0.3 })
+  1360→    ));
+  1361→    arm.position.set(0, 0, 1.4);
+  1362→    spkGroup.add(arm);
+  1363→
+  1364→    // --- Speaker cabinet (walnut wood body with beveled edge trim) ---
+  1365→    const body = addShadow(new THREE.Mesh(new THREE.BoxGeometry(4, 7, 4), speakerMat));
+  1366→    spkGroup.add(body);
+  1367→
+  1368→    // Cabinet edge trim — thin dark strips along the front face edges
+  1369→    // 2 vertical edge trims on the front face corners
+  1370→    for (const ex of [-1.95, 1.95]) {
+  1371→      const vtrim = addShadow(new THREE.Mesh(
+  1372→        new THREE.BoxGeometry(0.15, 7, 0.15),
+  1373→        edgeTrimMat
+  1374→      ));
+  1375→      vtrim.position.set(ex, 0, -1.95);
+  1376→      spkGroup.add(vtrim);
+  1377→    }
+  1378→    // Top and bottom horizontal edge trims on front face
+  1379→    for (const ey of [-3.45, 3.45]) {
+  1380→      const htrim = addShadow(new THREE.Mesh(
+  1381→        new THREE.BoxGeometry(4, 0.15, 0.15),
+  1382→        edgeTrimMat
+  1383→      ));
+  1384→      htrim.position.set(0, ey, -1.95);
+  1385→      spkGroup.add(htrim);
+  1386→    }
+  1387→
+  1388→    // --- Front baffle (recessed face that holds the drivers) ---
+  1389→    const baffle = addShadow(new THREE.Mesh(
+  1390→      new THREE.BoxGeometry(3.6, 6.6, 0.2),
+  1391→      new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.2, roughness: 0.6 })
+  1392→    ));
+  1393→    baffle.position.set(0, 0, -2); // front face
+  1394→    spkGroup.add(baffle);
+  1395→
+  1396→    // --- Tweeter (silk dome tweeter with flange and waveguide) ---
+  1397→    // Flange (flat mounting plate around the dome)
+  1398→    const tweeterFlange = addShadow(new THREE.Mesh(
+  1399→      new THREE.CylinderGeometry(0.8, 0.8, 0.1, 24),
+  1400→      tweeterFlangeMat
+  1401→    ));
+  1402→    tweeterFlange.rotation.x = Math.PI / 2;
+  1403→    tweeterFlange.position.set(0, 2.0, -2.1);
+  1404→    spkGroup.add(tweeterFlange);
+  1405→    // Waveguide (shallow recessed horn around the dome)
+  1406→    const waveguide = addShadow(new THREE.Mesh(
+  1407→      new THREE.CylinderGeometry(0.65, 0.4, 0.15, 24),
+  1408→      new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.3, roughness: 0.4 })
+  1409→    ));
+  1410→    waveguide.rotation.x = Math.PI / 2;
+  1411→    waveguide.position.set(0, 2.0, -2.15);
+  1412→    spkGroup.add(waveguide);
+  1413→    // Silk dome (hemisphere — the actual tweeter diaphragm)
+  1414→    const dome = addShadow(new THREE.Mesh(
+  1415→      new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+  1416→      tweeterDomeMat
+  1417→    ));
+  1418→    dome.rotation.x = -Math.PI / 2; // face -Z (into room)
+  1419→    dome.position.set(0, 2.0, -2.22);
+  1420→    spkGroup.add(dome);
+  1421→    // Tweeter mounting screws (4x around the flange)
+  1422→    for (let s = 0; s < 4; s++) {
+  1423→      const ang = (s / 4) * Math.PI * 2 + Math.PI / 4;
+  1424→      const tscrew = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 6), screwMat));
+  1425→      tscrew.rotation.x = Math.PI / 2;
+  1426→      tscrew.position.set(Math.cos(ang) * 0.7, 2.0 + Math.sin(ang) * 0.7, -2.16);
+  1427→      spkGroup.add(tscrew);
+  1428→    }
+  1429→
+  1430→    // --- Woofer (driver with cone, dust cap, surround, and basket screws) ---
+  1431→    // Surround (foam ring — outermost ring of the driver)
+  1432→    const surround = addShadow(new THREE.Mesh(
+  1433→      new THREE.TorusGeometry(1.1, 0.18, 8, 24),
+  1434→      surroundMat
+  1435→    ));
+  1436→    surround.position.set(0, -1.0, -2.12);
+  1437→    spkGroup.add(surround);
+  1438→    // Cone (the main diaphragm — slightly conical, wider at surround, narrower at dust cap)
+  1439→    const cone = addShadow(new THREE.Mesh(
+  1440→      new THREE.CylinderGeometry(0.5, 1.05, 0.25, 24),
+  1441→      coneMat
+  1442→    ));
+  1443→    cone.rotation.x = Math.PI / 2;
+  1444→    cone.position.set(0, -1.0, -2.18);
+  1445→    spkGroup.add(cone);
+  1446→    // Dust cap (small dome in the center of the cone)
+  1447→    const dustCap = addShadow(new THREE.Mesh(
+  1448→      new THREE.SphereGeometry(0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+  1449→      dustCapMat
+  1450→    ));
+  1451→    dustCap.rotation.x = -Math.PI / 2;
+  1452→    dustCap.position.set(0, -1.0, -2.32);
+  1453→    spkGroup.add(dustCap);
+  1454→    // Basket mounting screws (6x around the woofer)
+  1455→    for (let s = 0; s < 6; s++) {
+  1456→      const ang = (s / 6) * Math.PI * 2;
+  1457→      const wscrew = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 6), screwMat));
+  1458→      wscrew.rotation.x = Math.PI / 2;
+  1459→      wscrew.position.set(Math.cos(ang) * 1.3, -1.0 + Math.sin(ang) * 1.3, -2.14);
+  1460→      spkGroup.add(wscrew);
+  1461→    }
+  1462→
+  1463→    // --- Branding badge (small metallic plate below the tweeter) ---
+  1464→    const badge = addShadow(new THREE.Mesh(
+  1465→      new THREE.BoxGeometry(1.2, 0.3, 0.05),
+  1466→      badgeMat
+  1467→    ));
+  1468→    badge.position.set(0, 1.0, -2.12);
+  1469→    spkGroup.add(badge);
+  1470→    // Badge text mark (small dark line on the badge — simulated logo)
+  1471→    const badgeMark = addShadow(new THREE.Mesh(
+  1472→      new THREE.BoxGeometry(0.6, 0.08, 0.02),
+  1473→      new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.3, roughness: 0.5 })
+  1474→    ));
+  1475→    badgeMark.position.set(0, 1.0, -2.16);
+  1476→    spkGroup.add(badgeMark);
+  1477→
+  1478→    // --- Bass reflex port (front-firing tube below the woofer) ---
+  1479→    // Outer flange
+  1480→    const portFlange = addShadow(new THREE.Mesh(
+  1481→      new THREE.CylinderGeometry(0.4, 0.4, 0.08, 16),
+  1482→      new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.3, roughness: 0.5 })
+  1483→    ));
+  1484→    portFlange.rotation.x = Math.PI / 2;
+  1485→    portFlange.position.set(0, -2.5, -2.06);
+  1486→    spkGroup.add(portFlange);
+  1487→    // Port tube (extends into the cabinet)
+  1488→    const portTube = addShadow(new THREE.Mesh(
+  1489→      new THREE.CylinderGeometry(0.3, 0.3, 1.2, 16),
+  1490→      portMat
+  1491→    ));
+  1492→    portTube.rotation.x = Math.PI / 2;
+  1493→    portTube.position.set(0, -2.5, -1.5);
+  1494→    spkGroup.add(portTube);
+  1495→    // Port interior (dark hole visible from front)
+  1496→    const portHole = addShadow(new THREE.Mesh(
+  1497→      new THREE.CircleGeometry(0.28, 16),
+  1498→      new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1.0 })
+  1499→    ));
+  1500→    portHole.position.set(0, -2.5, -2.11);
+  1501→    spkGroup.add(portHole);
+  1502→
+  1503→    // --- RGB accent strip along the bottom of the speaker ---
+  1504→    const spkRgb = addShadow(new THREE.Mesh(
+  1505→      new THREE.BoxGeometry(3.8, 0.2, 0.15),
+  1506→      c.label.startsWith('F') ? rgbCyanMat : rgbPurpleMat
+  1507→    ));
+  1508→    spkRgb.position.set(0, -3.3, -1.9);
+  1509→    spkGroup.add(spkRgb);
+  1510→
+  1511→    // --- Grille frame (removable cloth-covered frame — sits over the drivers) ---
+  1512→    // Outer frame (thin border around the front face)
+  1513→    const grilleTop = addShadow(new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.15, 0.1), grilleFrameMat));
+  1514→    grilleTop.position.set(0, 3.15, -2.25);
+  1515→    spkGroup.add(grilleTop);
+  1516→    const grilleBot = addShadow(new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.15, 0.1), grilleFrameMat));
+  1517→    grilleBot.position.set(0, -3.15, -2.25);
+  1518→    spkGroup.add(grilleBot);
+  1519→    const grilleLeft = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.15, 6.3, 0.1), grilleFrameMat));
+  1520→    grilleLeft.position.set(-1.65, 0, -2.25);
+  1521→    spkGroup.add(grilleLeft);
+  1522→    const grilleRight = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.15, 6.3, 0.1), grilleFrameMat));
+  1523→    grilleRight.position.set(1.65, 0, -2.25);
+  1524→    spkGroup.add(grilleRight);
+  1525→    // Grille cloth (translucent dark mesh — simulates speaker fabric)
+  1526→    // Using a semi-transparent dark material so the drivers are faintly visible behind it
+  1527→    const grilleCloth = addShadow(new THREE.Mesh(
+  1528→      new THREE.PlaneGeometry(3.3, 6.2),
+  1529→      new THREE.MeshStandardMaterial({
+  1530→        color: 0x1a1a1e, metalness: 0.0, roughness: 0.95,
+  1531→        transparent: true, opacity: 0.55,
+  1532→      })
+  1533→    ));
+  1534→    grilleCloth.position.set(0, 0, -2.28);
+  1535→    spkGroup.add(grilleCloth);
+  1536→    // Grille attachment pegs (4x small dots at corners)
+  1537→    for (const [px, py] of [[-1.5, 3.0], [1.5, 3.0], [-1.5, -3.0], [1.5, -3.0]] as [number, number][]) {
+  1538→      const peg = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.1, 8), grilleFrameMat));
+  1539→      peg.rotation.x = Math.PI / 2;
+  1540→      peg.position.set(px, py, -2.22);
+  1541→      spkGroup.add(peg);
+  1542→    }
+  1543→
+  1544→    // --- Binding posts on back (speaker wire terminals) ---
+  1545→    // Terminal plate on the back of the cabinet
+  1546→    const termPlate = addShadow(new THREE.Mesh(
+  1547→      new THREE.BoxGeometry(1.5, 1, 0.1),
+  1548→      new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.3, roughness: 0.6 })
+  1549→    ));
+  1550→    termPlate.position.set(0, -1, 2.05); // back of speaker (+Z)
+  1551→    spkGroup.add(termPlate);
+  1552→    // 2 binding posts (red + black, brass-colored caps)
+  1553→    for (let p = 0; p < 2; p++) {
+  1554→      const post = addShadow(new THREE.Mesh(
+  1555→        new THREE.CylinderGeometry(0.18, 0.18, 0.25, 12),
+  1556→        terminalMat
+  1557→      ));
+  1558→      post.rotation.x = Math.PI / 2;
+  1559→      post.position.set(-0.3 + p * 0.6, -1, 2.18);
+  1560→      spkGroup.add(post);
+  1561→      // Post cap center (red/black indicator)
+  1562→      const cap = addShadow(new THREE.Mesh(
+  1563→        new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8),
+  1564→        new THREE.MeshStandardMaterial({ color: p === 0 ? 0xcc2020 : 0x202020, roughness: 0.5 })
+  1565→      ));
+  1566→      cap.rotation.x = Math.PI / 2;
+  1567→      cap.position.set(-0.3 + p * 0.6, -1, 2.33);
+  1568→      spkGroup.add(cap);
+  1569→    }
+  1570→
+  1571→    root.add(spkGroup);
+  1572→  }
+  1573→
+  1574→  // ============================================================
+  1575→  // COFFEE MUG (on right side of desk)
+  1576→  // ============================================================
+  1577→  const mug = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.3, 3, 16), mugMat));
+  1578→  mug.position.set(18, DESK_Y + 1.5, 22);
+  1579→  root.add(mug);
+  1580→  const mugHandle = addShadow(new THREE.Mesh(new THREE.TorusGeometry(1, 0.3, 6, 12), mugMat));
+  1581→  mugHandle.position.set(19.8, DESK_Y + 1.5, 22);
+  1582→  mugHandle.rotation.y = Math.PI / 2;
+  1583→  root.add(mugHandle);
+  1584→  // Coffee (dark liquid)
+  1585→  const coffee = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0x3a1a0a, roughness: 0.2 })));
+  1586→  coffee.position.set(18, DESK_Y + 2.7, 22);
+  1587→  root.add(coffee);
+  1588→
+  1589→  // ============================================================
+  1590→  // BOOKS (stack of 4, on left side desk)
+  1591→  // ============================================================
+  1592→  for (let i = 0; i < 4; i++) {
+  1593→    const book = addShadow(new THREE.Mesh(new THREE.BoxGeometry(6, 1.2, 4), bookMats[i]));
+  1594→    book.position.set(-15, DESK_Y + 0.6 + i * 1.2, 22);
+  1595→    book.rotation.y = (Math.random() - 0.5) * 0.1;
+  1596→    root.add(book);
+  1597→  }
+  1598→
+  1599→  // ============================================================
+  1600→  // PLANT (small succulent, on right side desk)
+  1601→  // ============================================================
+  1602→  const plantPot = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(2, 1.5, 3, 12), potMat));
+  1603→  plantPot.position.set(20, DESK_Y + 1.5, 26);
+  1604→  root.add(plantPot);
+  1605→  // Soil
+  1606→  const soil = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.3, 12), new THREE.MeshStandardMaterial({ color: 0x2a1a0a, roughness: 0.9 })));
+  1607→  soil.position.set(20, DESK_Y + 2.8, 26);
+  1608→  root.add(soil);
+  1609→  // Succulent leaves
+  1610→  for (let i = 0; i < 8; i++) {
+  1611→    const leaf = addShadow(new THREE.Mesh(new THREE.ConeGeometry(0.6, 3, 6), leafMat));
+  1612→    const ang = (i / 8) * Math.PI * 2;
+  1613→    leaf.position.set(20 + Math.cos(ang) * 0.8, DESK_Y + 4, 26 + Math.sin(ang) * 0.8);
+  1614→    leaf.rotation.z = Math.cos(ang) * 0.3;
+  1615→    leaf.rotation.x = -Math.sin(ang) * 0.3;
+  1616→    root.add(leaf);
+  1617→  }
+  1618→  // Center leaf
+  1619→  const centerLeaf = addShadow(new THREE.Mesh(new THREE.ConeGeometry(0.7, 3.5, 6), leafMat));
+  1620→  centerLeaf.position.set(20, DESK_Y + 4.5, 26);
+  1621→  root.add(centerLeaf);
+  1622→
+  1623→  // ============================================================
+  1624→  // HERMAN MILLER EMBODY GAMING CHAIR
+  1625→  // Distinctive features: pixelated back support (matrix of "pixels"),
+  1626→  // narrow tapered backrest, exposed aluminum Y-frame, no headrest,
+  1627→  // tiered seat with waterfall front edge, 4D armrests.
+  1628→  // Position: X=0, Z=10 (in front of keyboard, facing the monitors at +Z)
+  1629→  // ============================================================
+  1630→  const CHAIR_X = 0, CHAIR_Z = 26; // shifted forward with the desk
+  1631→
+  1632→  // Embody-specific materials
+  1633→  // The gaming version has a graphite/dark gray breathable fabric with subtle sheen
+  1634→  const embodyFabricTex = makeFabricTexture('#3a3a42', '#2a2a32');
+  1635→  embodyFabricTex.map.repeat.set(2, 3); embodyFabricTex.bumpMap.repeat.set(2, 3);
+  1636→  const embodyMat = new THREE.MeshStandardMaterial({
+  1637→    map: embodyFabricTex.map, bumpMap: embodyFabricTex.bumpMap, bumpScale: 0.03,
+  1638→    metalness: 0.1, roughness: 0.7,
+  1639→  });
+  1640→  // Pixel support material — slightly different shade for the backrest pixels
+  1641→  const pixelMat = new THREE.MeshStandardMaterial({
+  1642→    color: 0x4a4a52, metalness: 0.15, roughness: 0.65,
+  1643→  });
+  1644→  // Graphite-colored frame (dark aluminum, not pure black)
+  1645→  const embodyFrameMat = new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.75, roughness: 0.35 });
+  1646→
+  1647→  // === 5-star base (graphite aluminum, sleeker than the old chair) ===
+  1648→  for (let i = 0; i < 5; i++) {
+  1649→    const ang = (i / 5) * Math.PI * 2;
+  1650→    // Tapered leg — wider at the wheel end, narrower at the hub
+  1651→    const leg = addShadow(new THREE.Mesh(
+  1652→      new THREE.CylinderGeometry(0.4, 0.6, 7, 8),
+  1653→      embodyFrameMat
+  1654→    ));
+  1655→    leg.rotation.z = Math.PI / 2;
+  1656→    leg.rotation.y = -ang;
+  1657→    leg.position.set(CHAIR_X + Math.cos(ang) * 3.5, 1.2, CHAIR_Z + Math.sin(ang) * 3.5);
+  1658→    root.add(leg);
+  1659→    // Caster wheel (smaller, more refined)
+  1660→    const wheel = addShadow(new THREE.Mesh(
+  1661→      new THREE.CylinderGeometry(0.6, 0.6, 0.8, 10),
+  1662→      new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.3, roughness: 0.7 })
+  1663→    ));
+  1664→    wheel.rotation.z = Math.PI / 2;
+  1665→    wheel.rotation.y = ang;
+  1666→    wheel.position.set(CHAIR_X + Math.cos(ang) * 6.5, 0.6, CHAIR_Z + Math.sin(ang) * 6.5);
+  1667→    root.add(wheel);
+  1668→  }
+  1669→  // Central hub (where the 5 legs meet)
+  1670→  const hub = addShadow(new THREE.Mesh(
+  1671→    new THREE.CylinderGeometry(1.2, 1.5, 1.5, 16),
+  1672→    embodyFrameMat
+  1673→  ));
+  1674→  hub.position.set(CHAIR_X, 1.2, CHAIR_Z);
+  1675→  root.add(hub);
+  1676→
+  1677→  // === Gas cylinder column (sleek, graphite) ===
+  1678→  const chairColumn = addShadow(new THREE.Mesh(
+  1679→    new THREE.CylinderGeometry(0.6, 0.7, 4, 16),
+  1680→    embodyFrameMat
+  1681→  ));
+  1682→  chairColumn.position.set(CHAIR_X, 4, CHAIR_Z);
+  1683→  root.add(chairColumn);
+  1684→
+  1685→  // === Seat — tiered with waterfall front edge ===
+  1686→  // The Embody seat has a distinctive tiered/tapered shape.
+  1687→  // Main seat pan (slightly tapered — narrower at back, wider at front)
+  1688→  const seatPan = addShadow(new THREE.Mesh(
+  1689→    new THREE.BoxGeometry(12, 1.2, 11),
+  1690→    embodyMat
+  1691→  ));
+  1692→  seatPan.position.set(CHAIR_X, 6.5, CHAIR_Z);
+  1693→  root.add(seatPan);
+  1694→  // Front waterfall edge (rounded front lip for leg circulation)
+  1695→  const seatFront = addShadow(new THREE.Mesh(
+  1696→    new THREE.CylinderGeometry(0.6, 0.6, 12, 12, 1, false, 0, Math.PI),
+  1697→    embodyMat
+  1698→  ));
+  1699→  seatFront.rotation.z = Math.PI / 2;
+  1700→  seatFront.rotation.y = Math.PI / 2;
+  1701→  seatFront.position.set(CHAIR_X, 6.5, CHAIR_Z + 5.5);
+  1702→  root.add(seatFront);
+  1703→  // Seat pixel layers (3 tiers — the Embody seat has visible layering)
+  1704→  for (let tier = 0; tier < 3; tier++) {
+  1705→    const tierW = 11 - tier * 0.5;
+  1706→    const tierD = 10 - tier * 0.5;
+  1707→    const tierMesh = addShadow(new THREE.Mesh(
+  1708→      new THREE.BoxGeometry(tierW, 0.4, tierD),
+  1709→      pixelMat
+  1710→    ));
+  1711→    tierMesh.position.set(CHAIR_X, 7 + tier * 0.4, CHAIR_Z);
+  1712→    root.add(tierMesh);
+  1713→  }
+  1714→
+  1715→  // === Backrest — the iconic Embody "pixelated" back ===
+  1716→  // The back is a narrow tapered shape (wider at shoulders, narrower at lumbar)
+  1717→  // with a matrix of small "pixels" (support points) visible on the front.
+  1718→  const backGroup = new THREE.Group();
+  1719→  backGroup.position.set(CHAIR_X, 14, CHAIR_Z - 4.5);
+  1720→  backGroup.rotation.x = -0.12; // slight recline
+  1721→
+  1722→  // Back frame — tapered shape using a thin box (wider at top)
+  1723→  // We approximate the taper with 3 stacked segments of decreasing width
+  1724→  const backFrameBottom = addShadow(new THREE.Mesh(
+  1725→    new THREE.BoxGeometry(9, 4, 1.5),
+  1726→    embodyMat
+  1727→  ));
+  1728→  backFrameBottom.position.set(0, -5, 0);
+  1729→  backGroup.add(backFrameBottom);
+  1730→  const backFrameMid = addShadow(new THREE.Mesh(
+  1731→    new THREE.BoxGeometry(10, 4, 1.5),
+  1732→    embodyMat
+  1733→  ));
+  1734→  backFrameMid.position.set(0, -1, 0);
+  1735→  backGroup.add(backFrameMid);
+  1736→  const backFrameTop = addShadow(new THREE.Mesh(
+  1737→    new THREE.BoxGeometry(9, 4, 1.5),
+  1738→    embodyMat
+  1739→  ));
+  1740→  backFrameTop.position.set(0, 3, 0);
+  1741→  backGroup.add(backFrameTop);
+  1742→
+  1743→  // Pixel matrix — the signature Embody feature.
+  1744→  // A grid of small rounded squares covering the backrest front face.
+  1745→  // 6 columns × 8 rows = 48 pixels
+  1746→  for (let col = 0; col < 6; col++) {
+  1747→    for (let row = 0; row < 8; row++) {
+  1748→      // Skip pixels at the top corners (tapered shape) for a more organic look
+  1749→      if (row >= 6 && (col === 0 || col === 5)) continue;
+  1750→      if (row >= 7 && (col === 1 || col === 4)) continue;
+  1751→      const px = -4 + col * 1.6;
+  1752→      const py = -6 + row * 1.6;
+  1753→      const pixel = addShadow(new THREE.Mesh(
+  1754→        new THREE.BoxGeometry(1.2, 1.2, 0.3),
+  1755→        pixelMat
+  1756→      ));
+  1757→      pixel.position.set(px, py, -0.9); // front face of backrest (toward user, -Z)
+  1758→      // Slight Z variation for a textured, supportive look
+  1759→      pixel.position.z = -0.9 - (Math.random() * 0.15);
+  1760→      backGroup.add(pixel);
+  1761→    }
+  1762→  }
+  1763→
+  1764→  // Exposed Y-frame spine (the Embody has a visible central spine on the back)
+  1765→  const spine = addShadow(new THREE.Mesh(
+  1766→    new THREE.BoxGeometry(0.6, 12, 0.5),
+  1767→    embodyFrameMat
+  1768→  ));
+  1769→  spine.position.set(0, -1, 0.9); // back side of the backrest
+  1770→  backGroup.add(spine);
+  1771→  // Spine accent (silver stripe down the middle — gaming edition)
+  1772→  const spineAccent = addShadow(new THREE.Mesh(
+  1773→    new THREE.BoxGeometry(0.3, 12, 0.55),
+  1774→    new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.8, roughness: 0.25 })
+  1775→  ));
+  1776→  spineAccent.position.set(0, -1, 0.95);
+  1777→  backGroup.add(spineAccent);
+  1778→
+  1779→  root.add(backGroup);
+  1780→
+  1781→  // === 4D Armrests (2x) — adjustable, with pad ===
+  1782→  // The Embody armrests have a vertical post + horizontal pad that can slide.
+  1783→  for (const ax of [-7, 7]) {
+  1784→    // Vertical post (graphite)
+  1785→    const armrestPost = addShadow(new THREE.Mesh(
+  1786→      new THREE.CylinderGeometry(0.4, 0.4, 4, 10),
+  1787→      embodyFrameMat
+  1788→    ));
+  1789→    armrestPost.position.set(CHAIR_X + ax, 8, CHAIR_Z);
+  1790→    root.add(armrestPost);
+  1791→    // Armrest pad (slightly wider, upholstered)
+  1792→    const armrestPad = addShadow(new THREE.Mesh(
+  1793→      new THREE.BoxGeometry(1.8, 0.8, 4),
+  1794→      pixelMat
+  1795→    ));
+  1796→    armrestPad.position.set(CHAIR_X + ax, 10.5, CHAIR_Z);
+  1797→    root.add(armrestPad);
+  1798→    // Armrest accent stripe (silver, gaming edition)
+  1799→    const armAccent = addShadow(new THREE.Mesh(
+  1800→      new THREE.BoxGeometry(1.9, 0.1, 4.1),
+  1801→      new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.8, roughness: 0.25 })
+  1802→    ));
+  1803→    armAccent.position.set(CHAIR_X + ax, 10.2, CHAIR_Z);
+  1804→    root.add(armAccent);
+  1805→  }
+  1806→
+  1807→  // === Lumbar support pad (visible on the front of the backrest, mid-height) ===
+  1808→  const lumbarPad = addShadow(new THREE.Mesh(
+  1809→    new THREE.BoxGeometry(7, 1.2, 0.4),
+  1810→    new THREE.MeshStandardMaterial({ color: 0x5a5a62, metalness: 0.15, roughness: 0.6 })
+  1811→  ));
+  1812→  lumbarPad.position.set(CHAIR_X, 11.5, CHAIR_Z - 4.5 - 1.0); // front of backrest at lumbar height
+  1813→  root.add(lumbarPad);
+  1814→
+  1815→  // ============================================================
+  1816→  // WALL ART / SHELF (on accent wall behind user — south wall Z=-44)
+  1817→  // ============================================================
+  1818→  // Floating shelf
+  1819→  const shelf = addShadow(new THREE.Mesh(new THREE.BoxGeometry(20, 1, 3), deskMat));
+  1820→  shelf.position.set(-10, 22, -44);
+  1821→  root.add(shelf);
+  1822→  // Items on shelf
+  1823→  for (let i = 0; i < 3; i++) {
+  1824→    const item = addShadow(new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), bookMats[i]));
+  1825→    item.position.set(-15 + i * 4, 24.5, -44);
+  1826→    root.add(item);
+  1827→  }
+  1828→  // Small plant on shelf
+  1829→  const shelfPot = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1, 2, 8), potMat));
+  1830→  shelfPot.position.set(-3, 23.5, -44);
+  1831→  root.add(shelfPot);
+  1832→  for (let i = 0; i < 5; i++) {
+  1833→    const leaf = addShadow(new THREE.Mesh(new THREE.ConeGeometry(0.4, 2.5, 5), leafMat));
+  1834→    const ang = (i / 5) * Math.PI * 2;
+  1835→    leaf.position.set(-3 + Math.cos(ang) * 0.5, 25.5, -44 + Math.sin(ang) * 0.5);
+  1836→    leaf.rotation.z = Math.cos(ang) * 0.4;
+  1837→    root.add(leaf);
+  1838→  }
+  1839→
+  1840→  // Framed poster on accent wall
+  1841→  const posterFrame = addShadow(new THREE.Mesh(new THREE.BoxGeometry(12, 8, 0.5), darkPlasticMat));
+  1842→  posterFrame.position.set(15, 20, -44.5);
+  1843→  root.add(posterFrame);
+  1844→  const posterArt = addShadow(new THREE.Mesh(
+  1845→    new THREE.PlaneGeometry(11, 7),
+  1846→    new THREE.MeshStandardMaterial({
+  1847→      color: 0x1a3a5a, emissive: 0x1a3a5a, emissiveIntensity: 0.2, roughness: 0.6,
+  1848→    })
+  1849→  ));
+  1850→  posterArt.position.set(15, 20, -44.2);
+  1851→  root.add(posterArt);
+  1852→
+  1853→  // ============================================================
+  1854→  // CABLES (subtle, from monitors to PC)
+  1855→  // ============================================================
+  1856→  const cableMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.8 });
+  1857→  // Cable bundle from monitors to desk (behind center monitor)
+  1858→  const cableBundle = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 6, 8), cableMat));
+  1859→  cableBundle.position.set(0, DESK_Y + 5, 43);
+  1860→  root.add(cableBundle);
+  1861→  // Cable from PC (now at X=24, Z=24) down to floor
+  1862→  const pcCable = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, DESK_Y, 8), cableMat));
+  1863→  pcCable.position.set(24, DESK_Y / 2, 40);
+  1864→  root.add(pcCable);
+  1865→
+  1866→  // ============================================================
+  1867→  // LIGHTING
+  1868→  // ============================================================
+  1869→  // Sun (warm afternoon light through window)
+  1870→  const sun = new THREE.DirectionalLight(0xffe4b0, 1.4);
+  1871→  sun.position.set(20, 40, 50);
+  1872→  sun.castShadow = true;
+  1873→  sun.shadow.mapSize.width = 2048;
+  1874→  sun.shadow.mapSize.height = 2048;
+  1875→  sun.shadow.camera.left = -70;
+  1876→  sun.shadow.camera.right = 70;
+  1877→  sun.shadow.camera.top = 60;
+  1878→  sun.shadow.camera.bottom = -60;
+  1879→  sun.shadow.camera.near = 1;
+  1880→  sun.shadow.camera.far = 150;
+  1881→  sun.shadow.bias = -0.0005;
+  1882→  root.add(sun);
+  1883→
+  1884→  // Sky fill
+  1885→  const hemi = new THREE.HemisphereLight(0x88aacc, 0x554035, 0.5);
+  1886→  root.add(hemi);
+  1887→
+  1888→  // Ambient
+  1889→  const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+  1890→  root.add(ambient);
+  1891→
+  1892→  // Ceiling light (room)
+  1893→  const ceilingLight = new THREE.PointLight(0xfff4cc, 0.6, 80, 1.5);
+  1894→  ceilingLight.position.set(0, 43, 0);
+  1895→  root.add(ceilingLight);
+  1896→  const ceilingFixture = addShadow(new THREE.Mesh(
+  1897→    new THREE.CylinderGeometry(4, 4, 1.5, 16),
+  1898→    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4cc, emissiveIntensity: 0.8, metalness: 0.4, roughness: 0.3 })
+  1899→  ));
+  1900→  ceilingFixture.position.set(0, 44, 0);
+  1901→  root.add(ceilingFixture);
+  1902→
+  1903→  // ============================================================
+  1904→  // OFFICE FLOOR RUG (under chair)
+  1905→  // ============================================================
+  1906→  const rugTex = makeCarpetTexture('#3a2a4a', '#5a4a6a');
+  1907→  rugTex.map.repeat.set(2, 2); rugTex.bumpMap.repeat.set(2, 2);
+  1908→  const rugMat = new THREE.MeshStandardMaterial({
+  1909→    map: rugTex.map, bumpMap: rugTex.bumpMap, bumpScale: 0.04, roughness: 0.85,
+  1910→  });
+  1911→  const rug = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(20, 16), rugMat));
+  1912→  rug.rotation.x = -Math.PI / 2;
+  1913→  rug.position.set(0, 0.05, 24); // shifted forward with the chair
+  1914→  root.add(rug);
+  1915→
+  1916→  return root;
+  1917→}
+  1918→

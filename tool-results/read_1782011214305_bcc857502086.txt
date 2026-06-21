@@ -1,0 +1,1312 @@
+     1→// ====================== GREAT PYRAMID OF GIZA ======================
+     2→// Detailed pyramid with limestone block textures, interior chambers,
+     3→// hieroglyphic walls, gold accents, surrounding desert + Sphinx.
+     4→
+     5→import * as THREE from 'three';
+     6→import { addShadow, metal, steel, stainless, aluminum, darkSteel, brass, rubber, plastic } from './materials-dsl';
+     7→
+     8→// ===== PYRAMID-SPECIFIC TEXTURES =====
+     9→function makeTexture(size: number, draw: (ctx: CanvasRenderingContext2D, s: number) => void): THREE.CanvasTexture {
+    10→  const canvas = document.createElement('canvas');
+    11→  canvas.width = size; canvas.height = size;
+    12→  const ctx = canvas.getContext('2d')!;
+    13→  draw(ctx, size);
+    14→  const tex = new THREE.CanvasTexture(canvas);
+    15→  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    16→  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    17→  return tex;
+    18→}
+    19→function makeBump(size: number, draw: (ctx: CanvasRenderingContext2D, s: number) => void): THREE.CanvasTexture {
+    20→  const canvas = document.createElement('canvas');
+    21→  canvas.width = size; canvas.height = size;
+    22→  const ctx = canvas.getContext('2d')!;
+    23→  draw(ctx, size);
+    24→  const tex = new THREE.CanvasTexture(canvas);
+    25→  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    26→  return tex;
+    27→}
+    28→
+    29→// Limestone block texture (pyramid exterior) — HIGH CONTRAST, realistic
+    30→function makeLimestoneTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+    31→  return {
+    32→    map: makeTexture(256, (ctx, s) => {
+    33→      // Deep mortar background (dark shadow between blocks)
+    34→      ctx.fillStyle = '#3a2e18';
+    35→      ctx.fillRect(0, 0, s, s);
+    36→      const bw = 64, bh = 32, m = 3;
+    37→      for (let row = 0; row < s / bh + 1; row++) {
+    38→        const offset = (row % 2) * (bw / 2);
+    39→        for (let col = -1; col < s / bw + 2; col++) {
+    40→          const x = col * bw + offset + m, y = row * bh + m;
+    41→          // Block base with per-block variation
+    42→          const shade = 0.75 + Math.random() * 0.4;
+    43→          const r = 198 * shade, g = 178 * shade, b = 138 * shade;
+    44→          ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
+    45→          ctx.fillRect(x, y, bw - m * 2, bh - m * 2);
+    46→
+    47→          // Top highlight (sun catches the top edge of each block)
+    48→          const hlGrad = ctx.createLinearGradient(x, y, x, y + 6);
+    49→          hlGrad.addColorStop(0, `rgba(255,245,210,${0.3 + Math.random() * 0.2})`);
+    50→          hlGrad.addColorStop(1, 'transparent');
+    51→          ctx.fillStyle = hlGrad;
+    52→          ctx.fillRect(x, y, bw - m * 2, 6);
+    53→
+    54→          // Bottom shadow (shadow under each block overhang)
+    55→          const shGrad = ctx.createLinearGradient(x, y + bh - m * 2 - 8, x, y + bh - m * 2);
+    56→          shGrad.addColorStop(0, 'transparent');
+    57→          shGrad.addColorStop(1, 'rgba(20,10,0,0.4)');
+    58→          ctx.fillStyle = shGrad;
+    59→          ctx.fillRect(x, y + bh - m * 2 - 8, bw - m * 2, 8);
+    60→
+    61→          // Side shadows (left/right edges of each block)
+    62→          ctx.fillStyle = 'rgba(20,10,0,0.2)';
+    63→          ctx.fillRect(x, y, 2, bh - m * 2);
+    64→          ctx.fillRect(x + bw - m * 2 - 2, y, 2, bh - m * 2);
+    65→
+    66→          // Weathering stains (dripping down from top)
+    67→          ctx.fillStyle = `rgba(110,85,40,${0.08 + Math.random() * 0.2})`;
+    68→          const stainX = x + Math.random() * (bw - m * 2);
+    69→          const stainH = 5 + Math.random() * (bh - m * 2 - 5);
+    70→          ctx.fillRect(stainX, y, 3 + Math.random() * 5, stainH);
+    71→
+    72→          // Dark spots / biological growth
+    73→          if (Math.random() > 0.6) {
+    74→            ctx.fillStyle = `rgba(50,55,30,${0.15 + Math.random() * 0.2})`;
+    75→            ctx.beginPath();
+    76→            ctx.arc(x + Math.random() * (bw - m * 2), y + Math.random() * (bh - m * 2), 1 + Math.random() * 3, 0, Math.PI * 2);
+    77→            ctx.fill();
+    78→          }
+    79→
+    80→          // Cracks (dark, jagged)
+    81→          if (Math.random() > 0.55) {
+    82→            ctx.strokeStyle = 'rgba(30,20,5,0.5)';
+    83→            ctx.lineWidth = 0.8 + Math.random() * 0.8;
+    84→            ctx.beginPath();
+    85→            let cx = x + Math.random() * (bw - m * 2);
+    86→            let cy = y;
+    87→            ctx.moveTo(cx, cy);
+    88→            for (let k = 0; k < 4; k++) {
+    89→              cx += (Math.random() - 0.5) * 12;
+    90→              cy += (bh - m * 2) / 4;
+    91→              ctx.lineTo(cx, cy);
+    92→            }
+    93→            ctx.stroke();
+    94→          }
+    95→
+    96→          // Small surface texture noise
+    97→          for (let k = 0; k < 8; k++) {
+    98→            ctx.fillStyle = Math.random() > 0.5
+    99→              ? `rgba(255,235,200,${0.05 + Math.random() * 0.1})`
+   100→              : `rgba(60,40,15,${0.05 + Math.random() * 0.1})`;
+   101→            ctx.fillRect(x + Math.random() * (bw - m * 2), y + Math.random() * (bh - m * 2), 2, 1);
+   102→          }
+   103→        }
+   104→      }
+   105→
+   106→      // Overall warm wash (Egyptian sun tint)
+   107→      ctx.fillStyle = 'rgba(255,200,100,0.04)';
+   108→      ctx.fillRect(0, 0, s, s);
+   109→    }),
+   110→    bumpMap: makeBump(256, (ctx, s) => {
+   111→      // Deep mortar (recessed)
+   112→      ctx.fillStyle = '#202020';
+   113→      ctx.fillRect(0, 0, s, s);
+   114→      const bw = 64, bh = 32, m = 3;
+   115→      for (let row = 0; row < s / bh + 1; row++) {
+   116→        const offset = (row % 2) * (bw / 2);
+   117→        for (let col = -1; col < s / bw + 2; col++) {
+   118→          const x = col * bw + offset + m, y = row * bh + m;
+   119→          // Block surface (raised)
+   120→          ctx.fillStyle = '#b0b0b0';
+   121→          ctx.fillRect(x, y, bw - m * 2, bh - m * 2);
+   122→          // Top edge extra raised (highlight)
+   123→          ctx.fillStyle = '#d0d0d0';
+   124→          ctx.fillRect(x, y, bw - m * 2, 3);
+   125→          // Bottom edge extra recessed (shadow)
+   126→          ctx.fillStyle = '#808080';
+   127→          ctx.fillRect(x, y + bh - m * 2 - 3, bw - m * 2, 3);
+   128→          // Surface bumps
+   129→          for (let k = 0; k < 5; k++) {
+   130→            ctx.fillStyle = Math.random() > 0.5 ? '#909090' : '#c0c0c0';
+   131→            ctx.fillRect(x + Math.random() * (bw - m * 2), y + Math.random() * (bh - m * 2), 3, 2);
+   132→          }
+   133→        }
+   134→      }
+   135→    }),
+   136→  };
+   137→}
+   138→
+   139→// Hieroglyphics texture (interior chamber walls)
+   140→function makeHieroglyphTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   141→  const symbols = ['☥', '👁', '𓂀', '𓃭', '𓅓', '𓆣', '𓈖', '𓊪', '𓋴', '𓏏', '◇', '◆', '⬡', '☉', '⊕'];
+   142→  return {
+   143→    map: makeTexture(256, (ctx, s) => {
+   144→      // Sandstone-gold background
+   145→      const grad = ctx.createLinearGradient(0, 0, 0, s);
+   146→      grad.addColorStop(0, '#d4a843');
+   147→      grad.addColorStop(0.5, '#c89830');
+   148→      grad.addColorStop(1, '#b88820');
+   149→      ctx.fillStyle = grad;
+   150→      ctx.fillRect(0, 0, s, s);
+   151→      // Hieroglyph symbols in rows
+   152→      ctx.fillStyle = '#3a2a10';
+   153→      ctx.font = 'bold 20px serif';
+   154→      ctx.textAlign = 'center';
+   155→      for (let row = 0; row < 8; row++) {
+   156→        for (let col = 0; col < 8; col++) {
+   157→          const sym = symbols[(row * 8 + col) % symbols.length];
+   158→          ctx.fillText(sym, col * 32 + 16, row * 32 + 24);
+   159→        }
+   160→      }
+   161→      // Gold accent border lines
+   162→      ctx.strokeStyle = '#ffd700';
+   163→      ctx.lineWidth = 2;
+   164→      ctx.strokeRect(4, 4, s - 8, s - 8);
+   165→      ctx.lineWidth = 1;
+   166→      ctx.strokeRect(12, 12, s - 24, s - 24);
+   167→    }),
+   168→    bumpMap: makeBump(256, (ctx, s) => {
+   169→      ctx.fillStyle = '#808080';
+   170→      ctx.fillRect(0, 0, s, s);
+   171→      ctx.fillStyle = '#404040';
+   172→      ctx.font = 'bold 20px serif';
+   173→      ctx.textAlign = 'center';
+   174→      const symbols = ['☥', '👁', '◇', '◆', '⬡', '☉', '⊕', '○'];
+   175→      for (let row = 0; row < 8; row++) {
+   176→        for (let col = 0; col < 8; col++) {
+   177→          ctx.fillText(symbols[(row * 8 + col) % symbols.length], col * 32 + 16, row * 32 + 24);
+   178→        }
+   179→      }
+   180→    }),
+   181→  };
+   182→}
+   183→
+   184→// Gold leaf texture (sarcophagus, treasures)
+   185→function makeGoldTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   186→  return {
+   187→    map: makeTexture(128, (ctx, s) => {
+   188→      ctx.fillStyle = '#ffd700';
+   189→      ctx.fillRect(0, 0, s, s);
+   190→      // Gold leaf pattern (overlapping flakes)
+   191→      for (let i = 0; i < 50; i++) {
+   192→        const shade = 0.8 + Math.random() * 0.3;
+   193→        ctx.fillStyle = `rgba(${255 * shade|0},${215 * shade|0},${0})`;
+   194→        ctx.beginPath();
+   195→        ctx.arc(Math.random() * s, Math.random() * s, 3 + Math.random() * 8, 0, Math.PI * 2);
+   196→        ctx.fill();
+   197→      }
+   198→      // Shine streaks
+   199→      ctx.fillStyle = 'rgba(255,255,200,0.2)';
+   200→      for (let i = 0; i < 5; i++) {
+   201→        ctx.fillRect(Math.random() * s, 0, 2, s);
+   202→      }
+   203→    }),
+   204→    bumpMap: makeBump(128, (ctx, s) => {
+   205→      ctx.fillStyle = '#a0a0a0';
+   206→      ctx.fillRect(0, 0, s, s);
+   207→      for (let i = 0; i < 50; i++) {
+   208→        ctx.fillStyle = '#808080';
+   209→        ctx.beginPath();
+   210→        ctx.arc(Math.random() * s, Math.random() * s, 3 + Math.random() * 8, 0, Math.PI * 2);
+   211→        ctx.fill();
+   212→      }
+   213→    }),
+   214→  };
+   215→}
+   216→
+   217→// Basalt texture (chamber floors, dark stone)
+   218→function makeBasaltTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   219→  return {
+   220→    map: makeTexture(128, (ctx, s) => {
+   221→      ctx.fillStyle = '#1a1a1a';
+   222→      ctx.fillRect(0, 0, s, s);
+   223→      for (let i = 0; i < 500; i++) {
+   224→        ctx.fillStyle = `rgba(${40 + Math.random() * 30|0},${40 + Math.random() * 30|0},${40 + Math.random() * 30|0},0.5)`;
+   225→        ctx.fillRect(Math.random() * s, Math.random() * s, 2, 2);
+   226→      }
+   227→      // Larger mineral veins
+   228→      for (let i = 0; i < 5; i++) {
+   229→        ctx.strokeStyle = 'rgba(80,70,60,0.3)';
+   230→        ctx.lineWidth = 1;
+   231→        ctx.beginPath();
+   232→        let x = Math.random() * s, y = Math.random() * s;
+   233→        ctx.moveTo(x, y);
+   234→        for (let j = 0; j < 10; j++) {
+   235→          x += (Math.random() - 0.5) * 30;
+   236→          y += (Math.random() - 0.5) * 30;
+   237→          ctx.lineTo(x, y);
+   238→        }
+   239→        ctx.stroke();
+   240→      }
+   241→    }),
+   242→    bumpMap: makeBump(128, (ctx, s) => {
+   243→      ctx.fillStyle = '#808080';
+   244→      ctx.fillRect(0, 0, s, s);
+   245→      for (let i = 0; i < 300; i++) {
+   246→        ctx.fillStyle = Math.random() > 0.5 ? '#707070' : '#909090';
+   247→        ctx.fillRect(Math.random() * s, Math.random() * s, 2, 2);
+   248→      }
+   249→    }),
+   250→  };
+   251→}
+   252→
+   253→// Desert sand texture
+   254→function makeSandTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   255→  return {
+   256→    map: makeTexture(256, (ctx, s) => {
+   257→      ctx.fillStyle = '#e8d5a8';
+   258→      ctx.fillRect(0, 0, s, s);
+   259→      // Sand ripples
+   260→      for (let i = 0; i < 20; i++) {
+   261→        ctx.strokeStyle = `rgba(200,180,130,${0.1 + Math.random() * 0.2})`;
+   262→        ctx.lineWidth = 1 + Math.random() * 2;
+   263→        ctx.beginPath();
+   264→        const y = (i / 20) * s;
+   265→        ctx.moveTo(0, y);
+   266→        for (let x = 0; x < s; x += 10) {
+   267→          ctx.lineTo(x, y + Math.sin(x * 0.1 + i) * 3);
+   268→        }
+   269→        ctx.stroke();
+   270→      }
+   271→      // Sand grain noise
+   272→      for (let i = 0; i < 1000; i++) {
+   273→        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(180,160,110,0.15)' : 'rgba(240,220,180,0.15)';
+   274→        ctx.fillRect(Math.random() * s, Math.random() * s, 1, 1);
+   275→      }
+   276→    }),
+   277→    bumpMap: makeBump(256, (ctx, s) => {
+   278→      ctx.fillStyle = '#808080';
+   279→      ctx.fillRect(0, 0, s, s);
+   280→      for (let i = 0; i < 20; i++) {
+   281→        ctx.strokeStyle = '#606060';
+   282→        ctx.lineWidth = 2;
+   283→        ctx.beginPath();
+   284→        const y = (i / 20) * s;
+   285→        ctx.moveTo(0, y);
+   286→        for (let x = 0; x < s; x += 10) {
+   287→          ctx.lineTo(x, y + Math.sin(x * 0.1 + i) * 3);
+   288→        }
+   289→        ctx.stroke();
+   290→      }
+   291→    }),
+   292→  };
+   293→}
+   294→
+   295→// Granite texture (King's Chamber walls)
+   296→function makeGraniteTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   297→  return {
+   298→    map: makeTexture(256, (ctx, s) => {
+   299→      ctx.fillStyle = '#6b3a2a';
+   300→      ctx.fillRect(0, 0, s, s);
+   301→      const colors = ['#5a2a1a', '#7a4a3a', '#8b5a4a', '#4a2010', '#9b6a5a', '#3a1510'];
+   302→      for (let i = 0; i < 4000; i++) {
+   303→        ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+   304→        ctx.globalAlpha = 0.3 + Math.random() * 0.4;
+   305→        ctx.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 2, 1 + Math.random() * 2);
+   306→      }
+   307→      // White quartz veins
+   308→      for (let i = 0; i < 8; i++) {
+   309→        ctx.strokeStyle = 'rgba(200,200,200,0.3)';
+   310→        ctx.lineWidth = 1 + Math.random() * 2;
+   311→        ctx.beginPath();
+   312→        let x = Math.random() * s, y = Math.random() * s;
+   313→        ctx.moveTo(x, y);
+   314→        for (let j = 0; j < 15; j++) {
+   315→          x += (Math.random() - 0.5) * 25;
+   316→          y += (Math.random() - 0.5) * 25;
+   317→          ctx.lineTo(x, y);
+   318→        }
+   319→        ctx.stroke();
+   320→      }
+   321→      ctx.globalAlpha = 1;
+   322→    }),
+   323→    bumpMap: makeBump(256, (ctx, s) => {
+   324→      ctx.fillStyle = '#808080';
+   325→      ctx.fillRect(0, 0, s, s);
+   326→      for (let i = 0; i < 2000; i++) {
+   327→        ctx.fillStyle = Math.random() > 0.5 ? '#606060' : '#a0a0a0';
+   328→        ctx.fillRect(Math.random() * s, Math.random() * s, 2, 2);
+   329→      }
+   330→    }),
+   331→  };
+   332→}
+   333→
+   334→// Weathered aged limestone (darker, more eroded — for lower pyramid layers)
+   335→function makeWeatheredLimestoneTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   336→  return {
+   337→    map: makeTexture(256, (ctx, s) => {
+   338→      // Very dark mortar (deep shadows between eroded blocks)
+   339→      ctx.fillStyle = '#2a1e08';
+   340→      ctx.fillRect(0, 0, s, s);
+   341→      const bw = 64, bh = 32, m = 3;
+   342→      for (let row = 0; row < s / bh + 1; row++) {
+   343→        const offset = (row % 2) * (bw / 2);
+   344→        for (let col = -1; col < s / bw + 2; col++) {
+   345→          const x = col * bw + offset + m, y = row * bh + m;
+   346→          // Darker, more weathered blocks
+   347→          const shade = 0.55 + Math.random() * 0.35;
+   348→          const r = 168 * shade, g = 148 * shade, b = 112 * shade;
+   349→          ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
+   350→          ctx.fillRect(x, y, bw - m * 2, bh - m * 2);
+   351→
+   352→          // Top highlight (weak — weathered surface doesn't catch much light)
+   353→          const hlGrad = ctx.createLinearGradient(x, y, x, y + 4);
+   354→          hlGrad.addColorStop(0, 'rgba(200,180,140,0.2)');
+   355→          hlGrad.addColorStop(1, 'transparent');
+   356→          ctx.fillStyle = hlGrad;
+   357→          ctx.fillRect(x, y, bw - m * 2, 4);
+   358→
+   359→          // Heavy bottom shadow
+   360→          const shGrad = ctx.createLinearGradient(x, y + bh - m * 2 - 8, x, y + bh - m * 2);
+   361→          shGrad.addColorStop(0, 'transparent');
+   362→          shGrad.addColorStop(1, 'rgba(10,5,0,0.5)');
+   363→          ctx.fillStyle = shGrad;
+   364→          ctx.fillRect(x, y + bh - m * 2 - 8, bw - m * 2, 8);
+   365→
+   366→          // Side shadows
+   367→          ctx.fillStyle = 'rgba(10,5,0,0.3)';
+   368→          ctx.fillRect(x, y, 3, bh - m * 2);
+   369→          ctx.fillRect(x + bw - m * 2 - 3, y, 3, bh - m * 2);
+   370→
+   371→          // Heavy erosion stains (dripping down)
+   372→          ctx.fillStyle = `rgba(70,50,20,${0.15 + Math.random() * 0.3})`;
+   373→          for (let k = 0; k < 4; k++) {
+   374→            const sx = x + Math.random() * (bw - m * 2);
+   375→            const sh = 5 + Math.random() * (bh - m * 2 - 5);
+   376→            ctx.fillRect(sx, y, 4 + Math.random() * 6, sh);
+   377→          }
+   378→
+   379→          // Deep cracks (jagged, dark)
+   380→          if (Math.random() > 0.4) {
+   381→            ctx.strokeStyle = 'rgba(20,10,0,0.6)';
+   382→            ctx.lineWidth = 1 + Math.random();
+   383→            ctx.beginPath();
+   384→            let cx = x + Math.random() * (bw - m * 2), cy = y;
+   385→            ctx.moveTo(cx, cy);
+   386→            for (let k = 0; k < 5; k++) {
+   387→              cx += (Math.random() - 0.5) * 14;
+   388→              cy += (bh - m * 2) / 5;
+   389→              ctx.lineTo(cx, cy);
+   390→            }
+   391→            ctx.stroke();
+   392→          }
+   393→
+   394→          // Missing chunks (dark holes — erosion damage)
+   395→          if (Math.random() > 0.6) {
+   396→            ctx.fillStyle = 'rgba(15,8,0,0.7)';
+   397→            ctx.beginPath();
+   398→            ctx.arc(x + Math.random() * (bw - m * 2), y + Math.random() * (bh - m * 2), 2 + Math.random() * 5, 0, Math.PI * 2);
+   399→            ctx.fill();
+   400→          }
+   401→
+   402→          // Biological growth (dark green/black patches)
+   403→          if (Math.random() > 0.5) {
+   404→            ctx.fillStyle = `rgba(35,45,20,${0.15 + Math.random() * 0.25})`;
+   405→            ctx.beginPath();
+   406→            ctx.arc(x + Math.random() * (bw - m * 2), y + Math.random() * (bh - m * 2), 2 + Math.random() * 4, 0, Math.PI * 2);
+   407→            ctx.fill();
+   408→          }
+   409→
+   410→          // Surface roughness noise
+   411→          for (let k = 0; k < 10; k++) {
+   412→            ctx.fillStyle = Math.random() > 0.5
+   413→              ? `rgba(180,160,120,${0.06 + Math.random() * 0.1})`
+   414→              : `rgba(40,25,5,${0.06 + Math.random() * 0.1})`;
+   415→            ctx.fillRect(x + Math.random() * (bw - m * 2), y + Math.random() * (bh - m * 2), 2, 1);
+   416→          }
+   417→        }
+   418→      }
+   419→      // Overall dark weathering wash
+   420→      ctx.fillStyle = 'rgba(60,40,15,0.06)';
+   421→      ctx.fillRect(0, 0, s, s);
+   422→    }),
+   423→    bumpMap: makeBump(256, (ctx, s) => {
+   424→      ctx.fillStyle = '#1a1a1a';
+   425→      ctx.fillRect(0, 0, s, s);
+   426→      const bw = 64, bh = 32, m = 3;
+   427→      for (let row = 0; row < s / bh + 1; row++) {
+   428→        const offset = (row % 2) * (bw / 2);
+   429→        for (let col = -1; col < s / bw + 2; col++) {
+   430→          const x = col * bw + offset + m, y = row * bh + m;
+   431→          // Block surface (less raised = more eroded)
+   432→          ctx.fillStyle = '#909090';
+   433→          ctx.fillRect(x, y, bw - m * 2, bh - m * 2);
+   434→          // Top edge slightly raised
+   435→          ctx.fillStyle = '#a0a0a0';
+   436→          ctx.fillRect(x, y, bw - m * 2, 2);
+   437→          // Bottom heavily recessed
+   438→          ctx.fillStyle = '#606060';
+   439→          ctx.fillRect(x, y + bh - m * 2 - 4, bw - m * 2, 4);
+   440→        }
+   441→      }
+   442→      // Erosion pits (deep)
+   443→      for (let i = 0; i < 40; i++) {
+   444→        ctx.fillStyle = '#202020';
+   445→        ctx.beginPath();
+   446→        ctx.arc(Math.random() * s, Math.random() * s, 2 + Math.random() * 6, 0, Math.PI * 2);
+   447→        ctx.fill();
+   448→      }
+   449→      // Surface roughness
+   450→      for (let i = 0; i < 200; i++) {
+   451→        ctx.fillStyle = Math.random() > 0.5 ? '#707070' : '#a0a0a0';
+   452→        ctx.fillRect(Math.random() * s, Math.random() * s, 2, 1);
+   453→      }
+   454→    }),
+   455→  };
+   456→}
+   457→
+   458→// Painted Egyptian mural (colorful wall paintings — for chamber walls)
+   459→function makeMuralTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   460→  return {
+   461→    map: makeTexture(256, (ctx, s) => {
+   462→      // plaster background
+   463→      ctx.fillStyle = '#e8d8a8';
+   464→      ctx.fillRect(0, 0, s, s);
+   465→      // Painted figures (simplified Egyptian art style)
+   466→      // Scene 1: Pharaoh figure (left side)
+   467→      ctx.fillStyle = '#c87030'; // orange-brown skin
+   468→      ctx.fillRect(20, 60, 8, 50); // body
+   469→      ctx.beginPath(); ctx.arc(24, 50, 8, 0, Math.PI * 2); ctx.fill(); // head
+   470→      ctx.fillStyle = '#d4a020'; // gold crown
+   471→      ctx.fillRect(16, 42, 16, 6);
+   472→      ctx.fillStyle = '#ffffff'; // white kilt
+   473→      ctx.fillRect(20, 85, 8, 15);
+   474→      // Staff
+   475→      ctx.fillStyle = '#5a3a10';
+   476→      ctx.fillRect(34, 40, 2, 70);
+   477→      ctx.fillStyle = '#d4a020';
+   478→      ctx.beginPath(); ctx.arc(35, 38, 4, 0, Math.PI * 2); ctx.fill();
+   479→
+   480→      // Scene 2: Anubis (jackal god, right side)
+   481→      ctx.fillStyle = '#1a1a1a'; // black jackal head
+   482→      ctx.fillRect(180, 55, 15, 25);
+   483→      ctx.beginPath(); ctx.arc(187, 52, 8, 0, Math.PI * 2); ctx.fill();
+   484→      // Snout
+   485→      ctx.fillRect(193, 55, 10, 6);
+   486→      // Body
+   487→      ctx.fillStyle = '#c87030';
+   488→      ctx.fillRect(182, 80, 12, 35);
+   489→      // Gold collar
+   490→      ctx.fillStyle = '#d4a020';
+   491→      ctx.fillRect(180, 78, 16, 4);
+   492→
+   493→      // Scene 3: Eye of Horus (center top)
+   494→      ctx.strokeStyle = '#1a1a1a';
+   495→      ctx.lineWidth = 2;
+   496→      ctx.beginPath();
+   497→      ctx.arc(128, 30, 12, 0, Math.PI);
+   498→      ctx.stroke();
+   499→      ctx.fillStyle = '#1a4a8a'; // blue iris
+   500→      ctx.beginPath(); ctx.arc(128, 30, 5, 0, Math.PI * 2); ctx.fill();
+   501→      // Eye makeup lines
+   502→      ctx.strokeStyle = '#1a1a1a';
+   503→      ctx.beginPath();
+   504→      ctx.moveTo(116, 30); ctx.lineTo(110, 25);
+   505→      ctx.moveTo(140, 30); ctx.lineTo(146, 28);
+   506→      ctx.moveTo(128, 42); ctx.lineTo(128, 48);
+   507→      ctx.moveTo(128, 42); ctx.lineTo(122, 45);
+   508→      ctx.stroke();
+   509→
+   510→      // Scene 4: Scarab beetle (center bottom)
+   511→      ctx.fillStyle = '#2a7a3a'; // green-blue body
+   512→      ctx.beginPath(); ctx.ellipse(128, 200, 15, 10, 0, 0, Math.PI * 2); ctx.fill();
+   513→      ctx.fillStyle = '#d4a020'; // gold head
+   514→      ctx.beginPath(); ctx.arc(128, 190, 5, 0, Math.PI * 2); ctx.fill();
+   515→      // Legs
+   516→      ctx.strokeStyle = '#1a1a1a';
+   517→      ctx.lineWidth = 1.5;
+   518→      for (let a = -1; a <= 1; a++) {
+   519→        ctx.beginPath();
+   520→        ctx.moveTo(128 + a * 10, 195);
+   521→        ctx.lineTo(128 + a * 18, 185 + a * 3);
+   522→        ctx.stroke();
+   523→        ctx.beginPath();
+   524→        ctx.moveTo(128 + a * 10, 200);
+   525→        ctx.lineTo(128 + a * 18, 200 + a * 3);
+   526→        ctx.stroke();
+   527→        ctx.beginPath();
+   528→        ctx.moveTo(128 + a * 10, 205);
+   529→        ctx.lineTo(128 + a * 18, 215 + a * 3);
+   530→        ctx.stroke();
+   531→      }
+   532→
+   533→      // Decorative borders (top and bottom)
+   534→      ctx.fillStyle = '#1a4a8a';
+   535→      ctx.fillRect(0, 0, s, 8);
+   536→      ctx.fillRect(0, s - 8, s, 8);
+   537→      // Border pattern (alternating diamonds)
+   538→      ctx.fillStyle = '#d4a020';
+   539→      for (let i = 0; i < s; i += 16) {
+   540→        ctx.save();
+   541→        ctx.translate(i + 8, 4);
+   542→        ctx.rotate(Math.PI / 4);
+   543→        ctx.fillRect(-3, -3, 6, 6);
+   544→        ctx.restore();
+   545→        ctx.save();
+   546→        ctx.translate(i + 8, s - 4);
+   547→        ctx.rotate(Math.PI / 4);
+   548→        ctx.fillRect(-3, -3, 6, 6);
+   549→        ctx.restore();
+   550→      }
+   551→
+   552→      // Vertical text columns (hieroglyphs between scenes)
+   553→      ctx.fillStyle = '#1a4a8a';
+   554→      ctx.font = 'bold 12px serif';
+   555→      ctx.textAlign = 'center';
+   556→      const glyphs = ['☥', '𓂀', '☉', '◇', '𓃭', '𓅓'];
+   557→      for (let col = 0; col < 3; col++) {
+   558→        for (let row = 0; row < 6; row++) {
+   559→          ctx.fillText(glyphs[(row + col) % glyphs.length], 70 + col * 50, 20 + row * 20);
+   560→        }
+   561→      }
+   562→    }),
+   563→    bumpMap: makeBump(256, (ctx, s) => {
+   564→      ctx.fillStyle = '#909090';
+   565→      ctx.fillRect(0, 0, s, s);
+   566→      // Painted areas are slightly raised
+   567→      ctx.fillStyle = '#a0a0a0';
+   568→      ctx.fillRect(20, 40, 20, 80);  // pharaoh
+   569→      ctx.fillRect(175, 40, 25, 80); // anubis
+   570→      ctx.beginPath(); ctx.arc(128, 30, 12, 0, Math.PI); ctx.fill(); // eye
+   571→      ctx.beginPath(); ctx.ellipse(128, 200, 15, 10, 0, 0, Math.PI * 2); ctx.fill(); // scarab
+   572→      // Borders
+   573→      ctx.fillStyle = '#b0b0b0';
+   574→      ctx.fillRect(0, 0, s, 8);
+   575→      ctx.fillRect(0, s - 8, s, 8);
+   576→    }),
+   577→  };
+   578→}
+   579→
+   580→// Alabaster texture (translucent white stone — Queen's chamber walls)
+   581→function makeAlabasterTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   582→  return {
+   583→    map: makeTexture(256, (ctx, s) => {
+   584→      ctx.fillStyle = '#f0ead8';
+   585→      ctx.fillRect(0, 0, s, s);
+   586→      // Veining (translucent bands)
+   587→      for (let i = 0; i < 15; i++) {
+   588→        ctx.strokeStyle = `rgba(200,190,160,${0.2 + Math.random() * 0.3})`;
+   589→        ctx.lineWidth = 1 + Math.random() * 3;
+   590→        ctx.beginPath();
+   591→        let x = Math.random() * s, y = Math.random() * s;
+   592→        ctx.moveTo(x, y);
+   593→        for (let j = 0; j < 20; j++) {
+   594→          x += (Math.random() - 0.5) * 30;
+   595→          y += (Math.random() - 0.5) * 30;
+   596→          ctx.lineTo(x, y);
+   597→        }
+   598→        ctx.stroke();
+   599→      }
+   600→      // Soft cloud-like patches
+   601→      for (let i = 0; i < 20; i++) {
+   602→        const grad = ctx.createRadialGradient(Math.random() * s, Math.random() * s, 0, Math.random() * s, Math.random() * s, 20 + Math.random() * 30);
+   603→        grad.addColorStop(0, 'rgba(220,210,180,0.2)');
+   604→        grad.addColorStop(1, 'transparent');
+   605→        ctx.fillStyle = grad;
+   606→        ctx.fillRect(0, 0, s, s);
+   607→      }
+   608→    }),
+   609→    bumpMap: makeBump(256, (ctx, s) => {
+   610→      ctx.fillStyle = '#909090';
+   611→      ctx.fillRect(0, 0, s, s);
+   612→      for (let i = 0; i < 10; i++) {
+   613→        ctx.strokeStyle = '#808080';
+   614→        ctx.lineWidth = 2;
+   615→        ctx.beginPath();
+   616→        let x = Math.random() * s, y = Math.random() * s;
+   617→        ctx.moveTo(x, y);
+   618→        for (let j = 0; j < 15; j++) {
+   619→          x += (Math.random() - 0.5) * 30;
+   620→          y += (Math.random() - 0.5) * 30;
+   621→          ctx.lineTo(x, y);
+   622→        }
+   623→        ctx.stroke();
+   624→      }
+   625→    }),
+   626→  };
+   627→}
+   628→
+   629→// Mudbrick texture (for surrounding workers' buildings)
+   630→function makeMudbrickTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+   631→  return {
+   632→    map: makeTexture(256, (ctx, s) => {
+   633→      ctx.fillStyle = '#9a7848';
+   634→      ctx.fillRect(0, 0, s, s);
+   635→      const bw = 32, bh = 16, m = 1.5;
+   636→      for (let row = 0; row < s / bh + 1; row++) {
+   637→        const offset = (row % 2) * (bw / 2);
+   638→        for (let col = -1; col < s / bw + 2; col++) {
+   639→          const x = col * bw + offset + m, y = row * bh + m;
+   640→          const shade = 0.75 + Math.random() * 0.4;
+   641→          const r = 154 * shade, g = 120 * shade, b = 72 * shade;
+   642→          ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
+   643→          ctx.fillRect(x, y, bw - m * 2, bh - m * 2);
+   644→          // Straw / chaff marks in mudbrick
+   645→          ctx.fillStyle = `rgba(60,40,15,${0.08 + Math.random() * 0.12})`;
+   646→          for (let k = 0; k < 3; k++) {
+   647→            ctx.fillRect(x + Math.random() * (bw - m * 2), y + Math.random() * (bh - m * 2), 4 + Math.random() * 6, 1);
+   648→          }
+   649→        }
+   650→      }
+   651→      // Overall weathering wash
+   652→      ctx.fillStyle = 'rgba(80,60,30,0.08)';
+   653→      ctx.fillRect(0, 0, s, s);
+   654→    }),
+   655→    bumpMap: makeBump(256, (ctx, s) => {
+   656→      ctx.fillStyle = '#404040';
+   657→      ctx.fillRect(0, 0, s, s);
+   658→      ctx.fillStyle = '#a0a0a0';
+   659→      const bw = 32, bh = 16, m = 1.5;
+   660→      for (let row = 0; row < s / bh + 1; row++) {
+   661→        const offset = (row % 2) * (bw / 2);
+   662→        for (let col = -1; col < s / bw + 2; col++) {
+   663→          ctx.fillRect(col * bw + offset + m, row * bh + m, bw - m * 2, bh - m * 2);
+   664→        }
+   665→      }
+   666→    }),
+   667→  };
+   668→}
+   669→
+   670→// Papyrus scroll texture (for wall niches / document scenes)
+   671→function makePapyrusTexture(): THREE.CanvasTexture {
+   672→  return makeTexture(256, (ctx, s) => {
+   673→    // Papyrus base (warm beige with fiber lines)
+   674→    ctx.fillStyle = '#e8d8a0';
+   675→    ctx.fillRect(0, 0, s, s);
+   676→    // Horizontal fiber strips (papyrus is made of overlapping strips)
+   677→    for (let y = 0; y < s; y += 12) {
+   678→      const shade = 0.85 + Math.random() * 0.25;
+   679→      ctx.fillStyle = `rgba(180,160,100,${0.1 + Math.random() * 0.1})`;
+   680→      ctx.fillRect(0, y, s, 12);
+   681→      // Fiber lines within each strip
+   682→      ctx.strokeStyle = `rgba(160,140,80,${0.1 + Math.random() * 0.15})`;
+   683→      ctx.lineWidth = 0.5;
+   684→      for (let k = 0; k < 3; k++) {
+   685→        ctx.beginPath();
+   686→        ctx.moveTo(0, y + 3 + k * 3);
+   687→        ctx.lineTo(s, y + 3 + k * 3);
+   688→        ctx.stroke();
+   689→      }
+   690→    }
+   691→    // Ink hieroglyphs (dark, brush-stroke style)
+   692→    ctx.fillStyle = '#1a1a2a';
+   693→    ctx.font = 'bold 16px serif';
+   694→    ctx.textAlign = 'center';
+   695→    const glyphs = ['☥', '𓂀', '𓃭', '𓅓', '𓆣', '𓈖', '𓊪', '𓋴', '◇', '☉'];
+   696→    for (let row = 0; row < 12; row++) {
+   697→      for (let col = 0; col < 12; col++) {
+   698→        if (Math.random() > 0.3) {
+   699→          ctx.fillText(glyphs[Math.floor(Math.random() * glyphs.length)], col * 20 + 10, row * 20 + 16);
+   700→        }
+   701→      }
+   702→    }
+   703→    // Aging stains
+   704→    for (let i = 0; i < 10; i++) {
+   705→      const grad = ctx.createRadialGradient(Math.random() * s, Math.random() * s, 0, Math.random() * s, Math.random() * s, 20 + Math.random() * 30);
+   706→      grad.addColorStop(0, 'rgba(120,80,30,0.15)');
+   707→      grad.addColorStop(1, 'transparent');
+   708→      ctx.fillStyle = grad;
+   709→      ctx.fillRect(0, 0, s, s);
+   710→    }
+   711→  });
+   712→}
+   713→
+   714→// ===== BUILD PYRAMID =====
+   715→export function createPyramidGeometry(): THREE.Group {
+   716→  const root = new THREE.Group();
+   717→
+   718→  // Materials
+   719→  // ===== NON-UNIFORM TEXTURE SYSTEM =====
+   720→  // Create 4 variants of limestone + 3 variants of weathered limestone
+   721→  // Each layer gets a RANDOM variant with RANDOM UV offset and slightly different repeat
+   722→  // This breaks up the repetitive tiling pattern
+   723→
+   724→  const limestoneVariants: { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture }[] = [];
+   725→  for (let v = 0; v < 4; v++) {
+   726→    const tex = makeLimestoneTexture();
+   727→    limestoneVariants.push(tex);
+   728→  }
+   729→
+   730→  const weatheredVariants: { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture }[] = [];
+   731→  for (let v = 0; v < 3; v++) {
+   732→    const tex = makeWeatheredLimestoneTexture();
+   733→    weatheredVariants.push(tex);
+   734→  }
+   735→
+   736→  // Helper: create a unique material for a specific layer/face
+   737→  // Each call clones a texture variant with a unique offset and repeat
+   738→  const makeLayerMaterial = (layerIdx: number, faceIdx: number, isWeathered: boolean): THREE.MeshStandardMaterial => {
+   739→    const variants = isWeathered ? weatheredVariants : limestoneVariants;
+   740→    // Use Math.abs to ensure positive index (avoid negative modulo)
+   741→    const variantIdx = Math.abs(layerIdx * 7 + faceIdx * 13 + Math.floor(Math.random() * 100)) % variants.length;
+   742→    const src = variants[variantIdx];
+   743→
+   744→    // Clone textures so each face gets unique UVs
+   745→    const mapClone = src.map.clone();
+   746→    const bumpClone = src.bumpMap.clone();
+   747→    mapClone.needsUpdate = true;
+   748→    bumpClone.needsUpdate = true;
+   749→
+   750→    // Random repeat (slightly different per layer — breaks uniformity)
+   751→    const repX = 4 + Math.floor(Math.random() * 5); // 4-8
+   752→    const repY = 3 + Math.floor(Math.random() * 4); // 3-6
+   753→    mapClone.repeat.set(repX, repY);
+   754→    bumpClone.repeat.set(repX, repY);
+   755→
+   756→    // Random UV offset (shifts the pattern so it doesn't align between layers)
+   757→    mapClone.offset.set(Math.random(), Math.random());
+   758→    bumpClone.offset.set(mapClone.offset.x, mapClone.offset.y);
+   759→
+   760→    // Slightly different bump scale per layer
+   761→    const bumpScale = isWeathered ? 0.15 + Math.random() * 0.1 : 0.1 + Math.random() * 0.1;
+   762→
+   763→    // Slightly different roughness per layer
+   764→    const roughness = isWeathered ? 0.85 + Math.random() * 0.1 : 0.75 + Math.random() * 0.15;
+   765→
+   766→    return new THREE.MeshStandardMaterial({
+   767→      map: mapClone,
+   768→      bumpMap: bumpClone,
+   769→      bumpScale,
+   770→      metalness: 0.0,
+   771→      roughness,
+   772→    });
+   773→  };
+   774→
+   775→  // Keep a single pyramidMat for the solid core (interior, not visible)
+   776→  const pyramidMat = new THREE.MeshStandardMaterial({
+   777→    color: 0xc4b896, roughness: 0.85,
+   778→  });
+   779→  const weatheredMat = new THREE.MeshStandardMaterial({
+   780→    color: 0xa89878, roughness: 0.9,
+   781→  });
+   782→
+   783→  // Painted mural for King's Chamber walls
+   784→  const mural = makeMuralTexture();
+   785→  mural.map.repeat.set(3, 2);
+   786→  mural.bumpMap.repeat.set(3, 2);
+   787→  const muralMat = new THREE.MeshStandardMaterial({
+   788→    map: mural.map, bumpMap: mural.bumpMap, bumpScale: 0.08,
+   789→    metalness: 0.05, roughness: 0.5,
+   790→  });
+   791→
+   792→  // Alabaster for Queen's Chamber walls
+   793→  const alabaster = makeAlabasterTexture();
+   794→  alabaster.map.repeat.set(3, 2);
+   795→  alabaster.bumpMap.repeat.set(3, 2);
+   796→  const alabasterMat = new THREE.MeshStandardMaterial({
+   797→    map: alabaster.map, bumpMap: alabaster.bumpMap, bumpScale: 0.05,
+   798→    metalness: 0.1, roughness: 0.3,
+   799→    transparent: true, opacity: 0.85,
+   800→  });
+   801→
+   802→  // Mudbrick for surrounding workers' buildings
+   803→  const mudbrick = makeMudbrickTexture();
+   804→  mudbrick.map.repeat.set(4, 4);
+   805→  mudbrick.bumpMap.repeat.set(4, 4);
+   806→  const mudbrickMat = new THREE.MeshStandardMaterial({
+   807→    map: mudbrick.map, bumpMap: mudbrick.bumpMap, bumpScale: 0.12,
+   808→    metalness: 0.0, roughness: 0.9,
+   809→  });
+   810→
+   811→  // Papyrus scroll texture for wall niches
+   812→  const papyrusTex = makePapyrusTexture();
+   813→  papyrusTex.repeat.set(1, 1);
+   814→  const papyrusMat = new THREE.MeshStandardMaterial({
+   815→    map: papyrusTex, metalness: 0.0, roughness: 0.7,
+   816→  });
+   817→
+   818→  const hieroglyph = makeHieroglyphTexture();
+   819→  hieroglyph.map.repeat.set(4, 3);
+   820→  hieroglyph.bumpMap.repeat.set(4, 3);
+   821→  const hieroMat = new THREE.MeshStandardMaterial({
+   822→    map: hieroglyph.map, bumpMap: hieroglyph.bumpMap, bumpScale: 0.1,
+   823→    metalness: 0.2, roughness: 0.5,
+   824→  });
+   825→
+   826→  const gold = makeGoldTexture();
+   827→  gold.map.repeat.set(2, 2);
+   828→  gold.bumpMap.repeat.set(2, 2);
+   829→  const goldMat = new THREE.MeshStandardMaterial({
+   830→    map: gold.map, bumpMap: gold.bumpMap, bumpScale: 0.05,
+   831→    metalness: 0.95, roughness: 0.1,
+   832→  });
+   833→
+   834→  const basalt = makeBasaltTexture();
+   835→  basalt.map.repeat.set(4, 4);
+   836→  basalt.bumpMap.repeat.set(4, 4);
+   837→  const basaltMat = new THREE.MeshStandardMaterial({
+   838→    map: basalt.map, bumpMap: basalt.bumpMap, bumpScale: 0.08,
+   839→    metalness: 0.3, roughness: 0.5,
+   840→  });
+   841→
+   842→  const sand = makeSandTexture();
+   843→  sand.map.repeat.set(20, 20);
+   844→  sand.bumpMap.repeat.set(20, 20);
+   845→  const sandMat = new THREE.MeshStandardMaterial({
+   846→    map: sand.map, bumpMap: sand.bumpMap, bumpScale: 0.1,
+   847→    metalness: 0.0, roughness: 0.95,
+   848→  });
+   849→
+   850→  const graniteTex = makeGraniteTexture();
+   851→  graniteTex.map.repeat.set(3, 3);
+   852→  graniteTex.bumpMap.repeat.set(3, 3);
+   853→  const graniteMat = new THREE.MeshStandardMaterial({
+   854→    map: graniteTex.map, bumpMap: graniteTex.bumpMap, bumpScale: 0.08,
+   855→    metalness: 0.1, roughness: 0.6,
+   856→  });
+   857→
+   858→  const darkStone = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.7 });
+   859→  const torchMat = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.8 });
+   860→
+   861→  // ============================================================
+   862→  // DESERT GROUND
+   863→  // ============================================================
+   864→  const desert = addShadow(new THREE.Mesh(
+   865→    new THREE.CircleGeometry(600, 64), sandMat
+   866→  ));
+   867→  desert.rotation.x = -Math.PI / 2;
+   868→  desert.position.y = 0;
+   869→  root.add(desert);
+   870→
+   871→  // Sand dunes (low mounds around the pyramid)
+   872→  for (let i = 0; i < 8; i++) {
+   873→    const angle = (i / 8) * Math.PI * 2;
+   874→    const dist = 250 + Math.random() * 100;
+   875→    const dune = addShadow(new THREE.Mesh(
+   876→      new THREE.SphereGeometry(40 + Math.random() * 30, 16, 8, 0, Math.PI * 2, 0, Math.PI / 3),
+   877→      sandMat
+   878→    ));
+   879→    dune.position.set(Math.cos(angle) * dist, -10, Math.sin(angle) * dist);
+   880→    root.add(dune);
+   881→  }
+   882→
+   883→  // ============================================================
+   884→  // GREAT PYRAMID (main structure)
+   885→  // ============================================================
+   886→  const baseSize = 280;  // 280 units = ~230m at real scale
+   887→  const pyramidHeight = 180;
+   888→
+   889→  // Build pyramid from stacked block layers (visible texture on each face)
+   890→  const layers = 40;
+   891→  for (let i = 0; i < layers; i++) {
+   892→    const t = i / layers;
+   893→    const layerSize = baseSize * (1 - t);
+   894→    const layerH = pyramidHeight / layers;
+   895→    const layerY = i * layerH + layerH / 2;
+   896→
+   897→    // 4 sloped faces per layer (using thin boxes angled inward)
+   898→    const angle = Math.atan2(pyramidHeight, baseSize / 2);
+   899→
+   900→    [0, 1, 2, 3].forEach((face) => {
+   901→      const faceAngle = (face / 4) * Math.PI * 2;
+   902→      const faceWidth = layerSize * Math.SQRT2; // diagonal width
+   903→      // Lower 1/3 uses weathered limestone, upper 2/3 uses normal limestone
+   904→      const useWeathered = i < layers / 3;
+   905→      // Each layer+face gets a UNIQUE material with random variant, offset, and repeat
+   906→      const layerMaterial = makeLayerMaterial(i, face, useWeathered);
+   907→      const faceMesh = addShadow(new THREE.Mesh(
+   908→        new THREE.BoxGeometry(faceWidth, layerH * 1.5, 2),
+   909→        layerMaterial
+   910→      ));
+   911→      // Position at the edge of this layer
+   912→      const edgeDist = layerSize / 2;
+   913→      faceMesh.position.set(
+   914→        Math.cos(faceAngle) * edgeDist,
+   915→        layerY,
+   916→        Math.sin(faceAngle) * edgeDist
+   917→      );
+   918→      faceMesh.rotation.y = faceAngle + Math.PI / 2;
+   919→      faceMesh.rotation.z = 0;
+   920→      // Tilt to match pyramid slope
+   921→      const dir = new THREE.Vector3(Math.cos(faceAngle), 0, Math.sin(faceAngle));
+   922→      faceMesh.lookAt(faceMesh.position.x + dir.x, faceMesh.position.y + layerH * 0.8, faceMesh.position.z + dir.z);
+   923→      root.add(faceMesh);
+   924→    });
+   925→  }
+   926→
+   927→  // Solid pyramid core (for collision/walk mode)
+   928→  const pyramidCore = addShadow(new THREE.Mesh(
+   929→    new THREE.ConeGeometry(baseSize / 2 * Math.SQRT2, pyramidHeight, 4, 1),
+   930→    pyramidMat
+   931→  ));
+   932→  pyramidCore.position.y = pyramidHeight / 2;
+   933→  pyramidCore.rotation.y = Math.PI / 4;
+   934→  root.add(pyramidCore);
+   935→
+   936→  // Gold capstone (pyramidion)
+   937→  const capstone = addShadow(new THREE.Mesh(
+   938→    new THREE.ConeGeometry(8, 15, 4), goldMat
+   939→  ));
+   940→  capstone.position.y = pyramidHeight + 7;
+   941→  capstone.rotation.y = Math.PI / 4;
+   942→  root.add(capstone);
+   943→
+   944→  // Capstone glow
+   945→  const capGlow = new THREE.PointLight(0xffd700, 1.0, 100, 2);
+   946→  capGlow.position.y = pyramidHeight + 15;
+   947→  root.add(capGlow);
+   948→
+   949→  // ============================================================
+   950→  // ENTRANCE (north face, slightly above ground)
+   951→  // ============================================================
+   952→  const entranceH = 15, entranceW = 12;
+   953→  const entrance = addShadow(new THREE.Mesh(
+   954→    new THREE.BoxGeometry(entranceW, entranceH, 8), darkStone
+   955→  ));
+   956→  entrance.position.set(0, entranceH / 2 + 5, -baseSize / 2 + 4);
+   957→  root.add(entrance);
+   958→  // Entrance frame (limestone)
+   959→  const entFrame = addShadow(new THREE.Mesh(
+   960→    new THREE.BoxGeometry(entranceW + 4, entranceH + 4, 6), pyramidMat
+   961→  ));
+   962→  entFrame.position.set(0, entranceH / 2 + 5, -baseSize / 2 + 2);
+   963→  root.add(entFrame);
+   964→
+   965→  // ============================================================
+   966→  // INTERIOR — DESCENDING PASSAGE
+   967→  // ============================================================
+   968→  const passageGroup = new THREE.Group();
+   969→  passageGroup.position.set(0, 0, -baseSize / 2 + 8);
+   970→
+   971→  // Descending passage (slopes down into bedrock)
+   972→  const descPassage = addShadow(new THREE.Mesh(
+   973→    new THREE.BoxGeometry(8, 6, 60), darkStone
+   974→  ));
+   975→  descPassage.position.set(0, -15, 30);
+   976→  descPassage.rotation.x = -0.27; // ~15 degree slope
+   977→  passageGroup.add(descPassage);
+   978→
+   979→  // Subterranean chamber (below pyramid)
+   980→  const subChamber = addShadow(new THREE.Mesh(
+   981→    new THREE.BoxGeometry(40, 25, 30), basaltMat
+   982→  ));
+   983→  subChamber.position.set(0, -45, 55);
+   984→  passageGroup.add(subChamber);
+   985→  // Chamber hollow (darker interior)
+   986→  const subHollow = new THREE.Mesh(
+   987→    new THREE.BoxGeometry(36, 20, 26),
+   988→    new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.8 })
+   989→  );
+   990→  subHollow.position.set(0, -45, 55);
+   991→  passageGroup.add(subHollow);
+   992→
+   993→  // ============================================================
+   994→  // ASCENDING PASSAGE + GRAND GALLERY
+   995→  // ============================================================
+   996→  // Ascending passage
+   997→  const ascPassage = addShadow(new THREE.Mesh(
+   998→    new THREE.BoxGeometry(8, 6, 50), darkStone
+   999→  ));
+  1000→  ascPassage.position.set(0, 20, 15);
+  1001→  ascPassage.rotation.x = 0.43; // ~25 degree slope up
+  1002→  passageGroup.add(ascPassage);
+  1003→
+  1004→  // Grand Gallery (tall corbelled passage)
+  1005→  const gallery = addShadow(new THREE.Mesh(
+  1006→    new THREE.BoxGeometry(8, 40, 50), hieroMat
+  1007→  ));
+  1008→  gallery.position.set(0, 50, 50);
+  1009→  passageGroup.add(gallery);
+  1010→
+  1011→  // Gallery side benches (shelf on each side)
+  1012→  [-1, 1].forEach((s) => {
+  1013→    const shelf = addShadow(new THREE.Mesh(
+  1014→      new THREE.BoxGeometry(3, 8, 45), hieroMat
+  1015→    ));
+  1016→    shelf.position.set(s * 4, 44, 50);
+  1017→    passageGroup.add(shelf);
+  1018→  });
+  1019→
+  1020→  // Torches on gallery walls (glowing)
+  1021→  [35, 50, 65].forEach((z) => {
+  1022→    [-1, 1].forEach((s) => {
+  1023→      const torch = addShadow(new THREE.Mesh(
+  1024→        new THREE.CylinderGeometry(0.5, 0.5, 4, 8), torchMat
+  1025→      ));
+  1026→      torch.position.set(s * 3, 55, z);
+  1027→      passageGroup.add(torch);
+  1028→      // Torch flame
+  1029→      const flame = addShadow(new THREE.Mesh(
+  1030→        new THREE.ConeGeometry(1.5, 3, 8), torchMat
+  1031→      ));
+  1032→      flame.position.set(s * 3, 58, z);
+  1033→      passageGroup.add(flame);
+  1034→      // Torch light
+  1035→      const tLight = new THREE.PointLight(0xff6600, 0.5, 40, 2);
+  1036→      tLight.position.set(s * 3, 58, z);
+  1037→      passageGroup.add(tLight);
+  1038→    });
+  1039→  });
+  1040→
+  1041→  // ============================================================
+  1042→  // KING'S CHAMBER (granite walls, sarcophagus)
+  1043→  // ============================================================
+  1044→  const kingChamber = addShadow(new THREE.Mesh(
+  1045→    new THREE.BoxGeometry(50, 30, 20), graniteMat
+  1046→  ));
+  1047→  kingChamber.position.set(0, 70, 75);
+  1048→  passageGroup.add(kingChamber);
+  1049→
+  1050→  // Chamber interior (hollow with hieroglyph walls)
+  1051→  const kingInterior = addShadow(new THREE.Mesh(
+  1052→    new THREE.BoxGeometry(46, 26, 16), muralMat
+  1053→  ));
+  1054→  kingInterior.position.set(0, 70, 75);
+  1055→  passageGroup.add(kingInterior);
+  1056→
+  1057→  // Sarcophagus (gold)
+  1058→  const sarcophagus = addShadow(new THREE.Mesh(
+  1059→    new THREE.BoxGeometry(12, 10, 6), goldMat
+  1060→  ));
+  1061→  sarcophagus.position.set(0, 62, 75);
+  1062→  passageGroup.add(sarcophagus);
+  1063→  // Sarcophagus lid
+  1064→  const sarcLid = addShadow(new THREE.Mesh(
+  1065→    new THREE.BoxGeometry(13, 2, 7), goldMat
+  1066→  ));
+  1067→  sarcLid.position.set(0, 68, 75);
+  1068→  passageGroup.add(sarcLid);
+  1069→
+  1070→  // Gold treasures around sarcophagus
+  1071→  for (let i = 0; i < 6; i++) {
+  1072→    const angle = (i / 6) * Math.PI * 2;
+  1073→    const treasure = addShadow(new THREE.Mesh(
+  1074→      new THREE.BoxGeometry(3, 2, 3), goldMat
+  1075→    ));
+  1076→    treasure.position.set(Math.cos(angle) * 10, 60, 75 + Math.sin(angle) * 8);
+  1077→    passageGroup.add(treasure);
+  1078→  }
+  1079→
+  1080→  // King's Chamber light (torch-lit warm glow)
+  1081→  const kingLight = new THREE.PointLight(0xff8800, 0.6, 60, 2);
+  1082→  kingLight.position.set(0, 75, 75);
+  1083→  passageGroup.add(kingLight);
+  1084→
+  1085→  // ============================================================
+  1086→  // QUEEN'S CHAMBER (smaller, hieroglyph walls)
+  1087→  // ============================================================
+  1088→  const queenChamber = addShadow(new THREE.Mesh(
+  1089→    new THREE.BoxGeometry(30, 20, 15), alabasterMat
+  1090→  ));
+  1091→  queenChamber.position.set(0, 40, 40);
+  1092→  passageGroup.add(queenChamber);
+  1093→
+  1094→  // Queen's statue (small gold figure)
+  1095→  const statue = addShadow(new THREE.Mesh(
+  1096→    new THREE.BoxGeometry(3, 8, 3), goldMat
+  1097→  ));
+  1098→  statue.position.set(0, 34, 40);
+  1099→  passageGroup.add(statue);
+  1100→  // Statue head
+  1101→  const statueHead = addShadow(new THREE.Mesh(
+  1102→    new THREE.SphereGeometry(2, 12, 10), goldMat
+  1103→  ));
+  1104→  statueHead.position.set(0, 40, 40);
+  1105→  passageGroup.add(statueHead);
+  1106→
+  1107→  // Queen's Chamber light
+  1108→  const queenLight = new THREE.PointLight(0xffaa00, 0.3, 40, 2);
+  1109→  queenLight.position.set(0, 42, 40);
+  1110→  passageGroup.add(queenLight);
+  1111→
+  1112→  root.add(passageGroup);
+  1113→
+  1114→  // ============================================================
+  1115→  // SPHINX (in front of the pyramid)
+  1116→  // ============================================================
+  1117→  const sphinxGroup = new THREE.Group();
+  1118→  // Body (reclining lion) — uses weathered limestone (exposed to elements)
+  1119→  const sphinxMat = makeLayerMaterial(99, 0, true); // weathered variant
+  1120→  const sphinxBody = addShadow(new THREE.Mesh(
+  1121→    new THREE.BoxGeometry(60, 25, 35), sphinxMat
+  1122→  ));
+  1123→  sphinxBody.position.y = 12;
+  1124→  sphinxGroup.add(sphinxBody);
+  1125→  // Head (pharaoh head)
+  1126→  const sphinxHead = addShadow(new THREE.Mesh(
+  1127→    new THREE.BoxGeometry(20, 25, 18), sphinxMat
+  1128→  ));
+  1129→  sphinxHead.position.set(0, 35, 10);
+  1130→  sphinxGroup.add(sphinxHead);
+  1131→  // Headdress (gold stripes)
+  1132→  const headdress = addShadow(new THREE.Mesh(
+  1133→    new THREE.BoxGeometry(22, 15, 20), goldMat
+  1134→  ));
+  1135→  headdress.position.set(0, 40, 10);
+  1136→  sphinxGroup.add(headdress);
+  1137→  // Front paws
+  1138→  [-12, 12].forEach((x) => {
+  1139→    const paw = addShadow(new THREE.Mesh(
+  1140→      new THREE.BoxGeometry(8, 8, 20), pyramidMat
+  1141→    ));
+  1142→    paw.position.set(x, 4, -25);
+  1143→    sphinxGroup.add(paw);
+  1144→  });
+  1145→
+  1146→  sphinxGroup.position.set(0, 0, -baseSize / 2 - 60);
+  1147→  root.add(sphinxGroup);
+  1148→
+  1149→  // ============================================================
+  1150→  // SMALLER PYRAMIDS (2 satellite pyramids)
+  1151→  // ============================================================
+  1152→  [[-180, -100], [180, -100]].forEach(([x, z]) => {
+  1153→    // Each satellite pyramid gets a unique non-uniform texture
+  1154→    const satMat = makeLayerMaterial(200 + x, z, false);
+  1155→    const smallPyramid = addShadow(new THREE.Mesh(
+  1156→      new THREE.ConeGeometry(50 * Math.SQRT2, 80, 4), satMat
+  1157→    ));
+  1158→    smallPyramid.position.set(x, 40, z);
+  1159→    smallPyramid.rotation.y = Math.PI / 4;
+  1160→    root.add(smallPyramid);
+  1161→    // Small gold capstone
+  1162→    const smallCap = addShadow(new THREE.Mesh(
+  1163→      new THREE.ConeGeometry(3, 6, 4), goldMat
+  1164→    ));
+  1165→    smallCap.position.set(x, 83, z);
+  1166→    smallCap.rotation.y = Math.PI / 4;
+  1167→    root.add(smallCap);
+  1168→  });
+  1169→
+  1170→  // ============================================================
+  1171→  // MORTUARY TEMPLE (in front of pyramid, east side) — mudbrick texture
+  1172→  // ============================================================
+  1173→  const temple = addShadow(new THREE.Mesh(
+  1174→    new THREE.BoxGeometry(80, 20, 40), mudbrickMat
+  1175→  ));
+  1176→  temple.position.set(0, 10, baseSize / 2 + 40);
+  1177→  root.add(temple);
+  1178→  // Temple columns (6) — limestone
+  1179→  for (let i = 0; i < 6; i++) {
+  1180→    const col = addShadow(new THREE.Mesh(
+  1181→      new THREE.CylinderGeometry(3, 4, 25, 16), pyramidMat
+  1182→    ));
+  1183→    col.position.set(-30 + i * 12, 22, baseSize / 2 + 60);
+  1184→    root.add(col);
+  1185→  }
+  1186→  // Temple roof — mudbrick
+  1187→  const templeRoof = addShadow(new THREE.Mesh(
+  1188→    new THREE.BoxGeometry(80, 4, 20), mudbrickMat
+  1189→  ));
+  1190→  templeRoof.position.set(0, 35, baseSize / 2 + 60);
+  1191→  root.add(templeRoof);
+  1192→
+  1193→  // Workers' buildings (mudbrick, near temple)
+  1194→  [[-60, baseSize / 2 + 30], [60, baseSize / 2 + 30], [-60, baseSize / 2 + 80]].forEach(([x, z]) => {
+  1195→    const hut = addShadow(new THREE.Mesh(
+  1196→      new THREE.BoxGeometry(25, 15, 20), mudbrickMat
+  1197→    ));
+  1198→    hut.position.set(x, 7.5, z);
+  1199→    root.add(hut);
+  1200→    // Thatched roof
+  1201→    const roof = addShadow(new THREE.Mesh(
+  1202→      new THREE.ConeGeometry(20, 8, 4),
+  1203→      new THREE.MeshStandardMaterial({ color: 0x8b7333, roughness: 0.9 })
+  1204→    ));
+  1205→    roof.position.set(x, 19, z);
+  1206→    roof.rotation.y = Math.PI / 4;
+  1207→    root.add(roof);
+  1208→  });
+  1209→
+  1210→  // Papyrus scroll niches in Grand Gallery walls (2)
+  1211→  [[-3.5, 50, 35], [3.5, 50, 65]].forEach(([x, y, z]) => {
+  1212→    const niche = addShadow(new THREE.Mesh(
+  1213→      new THREE.BoxGeometry(0.5, 12, 8), papyrusMat
+  1214→    ));
+  1215→    niche.position.set(x, y, z);
+  1216→    passageGroup.add(niche);
+  1217→  });
+  1218→
+  1219→  // ============================================================
+  1220→  // SURROUNDING WALL + CAUSEWAY
+  1221→  // ============================================================
+  1222→  // Perimeter wall (low limestone wall around complex)
+  1223→  const wallH = 8;
+  1224→  [[0, 200, 500, wallH], [0, -200, 500, wallH], [200, 0, wallH, 500], [-200, 0, wallH, 500]].forEach(([x, z, w, h]) => {
+  1225→    const wall = addShadow(new THREE.Mesh(
+  1226→      new THREE.BoxGeometry(w, h, 3), pyramidMat
+  1227→    ));
+  1228→    wall.position.set(x, h / 2, z);
+  1229→    root.add(wall);
+  1230→  });
+  1231→
+  1232→  // Causeway (paved walkway from temple to Nile)
+  1233→  const causeway = addShadow(new THREE.Mesh(
+  1234→    new THREE.BoxGeometry(20, 1, 150), basaltMat
+  1235→  ));
+  1236→  causeway.position.set(0, 0.5, baseSize / 2 + 140);
+  1237→  root.add(causeway);
+  1238→
+  1239→  // ============================================================
+  1240→  // PALM TREES + OASIS (near the causeway end)
+  1241→  // ============================================================
+  1242→  for (let i = 0; i < 6; i++) {
+  1243→    const x = -20 + (i % 3) * 20 + Math.random() * 10;
+  1244→    const z = baseSize / 2 + 200 + Math.random() * 40;
+  1245→    // Trunk
+  1246→    const trunk = addShadow(new THREE.Mesh(
+  1247→      new THREE.CylinderGeometry(1.5, 3, 30, 8),
+  1248→      new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.8 })
+  1249→    ));
+  1250→    trunk.position.set(x, 15, z);
+  1251→    root.add(trunk);
+  1252→    // Fronds
+  1253→    for (let j = 0; j < 6; j++) {
+  1254→      const angle = (j / 6) * Math.PI * 2;
+  1255→      const frond = addShadow(new THREE.Mesh(
+  1256→        new THREE.BoxGeometry(12, 0.5, 2),
+  1257→        new THREE.MeshStandardMaterial({ color: 0x3a5a1a, roughness: 0.7, side: THREE.DoubleSide })
+  1258→      ));
+  1259→      frond.position.set(x + Math.cos(angle) * 6, 30, z + Math.sin(angle) * 6);
+  1260→      frond.rotation.y = angle;
+  1261→      frond.rotation.z = -0.3;
+  1262→      root.add(frond);
+  1263→    }
+  1264→  }
+  1265→
+  1266→  // Small water feature (Nile river edge)
+  1267→  const nile = addShadow(new THREE.Mesh(
+  1268→    new THREE.BoxGeometry(300, 1, 60),
+  1269→    new THREE.MeshStandardMaterial({ color: 0x4a7a9a, metalness: 0.3, roughness: 0.1, transparent: true, opacity: 0.7 })
+  1270→  ));
+  1271→  nile.position.set(0, 0.5, baseSize / 2 + 280);
+  1272→  root.add(nile);
+  1273→
+  1274→  // ============================================================
+  1275→  // LIGHTING (realistic Egyptian sun with strong shadows)
+  1276→  // ============================================================
+  1277→  // Main sun (warm, low angle for long dramatic shadows)
+  1278→  const sun = new THREE.DirectionalLight(0xffd88a, 2.0);
+  1279→  sun.position.set(150, 250, 80);
+  1280→  sun.castShadow = true;
+  1281→  sun.shadow.mapSize.set(2048, 2048);
+  1282→  sun.shadow.camera.left = -500;
+  1283→  sun.shadow.camera.right = 500;
+  1284→  sun.shadow.camera.top = 500;
+  1285→  sun.shadow.camera.bottom = -500;
+  1286→  sun.shadow.camera.near = 10;
+  1287→  sun.shadow.camera.far = 1200;
+  1288→  sun.shadow.bias = -0.0003;
+  1289→  sun.shadow.normalBias = 0.02;
+  1290→  root.add(sun);
+  1291→
+  1292→  // Fill light (cool sky bounce — fills shadow areas)
+  1293→  const fill = new THREE.DirectionalLight(0xb0d0ff, 0.4);
+  1294→  fill.position.set(-150, 200, -100);
+  1295→  root.add(fill);
+  1296→
+  1297→  // Ambient (warm, low — keeps shadows dark)
+  1298→  const ambient = new THREE.AmbientLight(0xddc888, 0.25);
+  1299→  root.add(ambient);
+  1300→
+  1301→  // Hemisphere (warm sky / sand bounce)
+  1302→  const hemi = new THREE.HemisphereLight(0xffeec0, 0xddc888, 0.35);
+  1303→  root.add(hemi);
+  1304→
+  1305→  // Rim light (backlight to separate pyramid from sky)
+  1306→  const rim = new THREE.DirectionalLight(0xffaa44, 0.3);
+  1307→  rim.position.set(-100, 100, -200);
+  1308→  root.add(rim);
+  1309→
+  1310→  return root;
+  1311→}
+  1312→

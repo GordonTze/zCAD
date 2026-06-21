@@ -1,0 +1,542 @@
+   500→  oakTableTex.map.repeat.set(3, 2); oakTableTex.bumpMap.repeat.set(3, 2);
+   501→  const oakTableMat = new THREE.MeshStandardMaterial({ map: oakTableTex.map, bumpMap: oakTableTex.bumpMap, bumpScale: 0.03, metalness: 0.1, roughness: 0.45 });
+   502→
+   503→  const graniteCounter = makeGraniteTexture();
+   504→  graniteCounter.map.repeat.set(4, 2); graniteCounter.bumpMap.repeat.set(4, 2);
+   505→  const counterMat = new THREE.MeshStandardMaterial({ map: graniteCounter.map, bumpMap: graniteCounter.bumpMap, bumpScale: 0.01, metalness: 0.3, roughness: 0.15 });
+   506→
+   507→  const marbleCounter = makeMarbleTexture();
+   508→  marbleCounter.map.repeat.set(3, 2); marbleCounter.bumpMap.repeat.set(3, 2);
+   509→  const marbleCounterMat = new THREE.MeshStandardMaterial({ map: marbleCounter.map, bumpMap: marbleCounter.bumpMap, bumpScale: 0.01, metalness: 0.2, roughness: 0.1 });
+   510→
+   511→  const cabinetMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.3, roughness: 0.4 });
+   512→  const whiteCabinetMat = new THREE.MeshStandardMaterial({ color: 0xf0ece4, metalness: 0.05, roughness: 0.4 });
+   513→  const applianceMat = new THREE.MeshStandardMaterial({ color: 0xc8c8cc, metalness: 0.85, roughness: 0.15 });
+   514→  const brassMat = new THREE.MeshStandardMaterial({ color: 0xc09545, metalness: 0.9, roughness: 0.25 });
+   515→  const rugTex = makeCarpetTexture('#7a3a3a', '#d4a060');
+   516→  rugTex.map.repeat.set(2, 1); rugTex.bumpMap.repeat.set(2, 1);
+   517→  const rugMat = new THREE.MeshStandardMaterial({ map: rugTex.map, bumpMap: rugTex.bumpMap, bumpScale: 0.04, metalness: 0.05, roughness: 0.85 });
+   518→  const potMat = new THREE.MeshStandardMaterial({ color: 0xe8d4b8, roughness: 0.6, metalness: 0.1 });
+   519→
+   520→  // ===== HELPERS =====
+   521→  function wall(x: number, z: number, w: number, h: number, d: number, mat: THREE.Material = wallMat, name = 'wall', yCenter?: number) {
+   522→    const m = addShadow(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat));
+   523→    m.position.set(x, yCenter !== undefined ? yCenter : h / 2, z);
+   524→    m.name = name;
+   525→    root.add(m);
+   526→    return m;
+   527→  }
+   528→
+   529→  function baseboard(x: number, z: number, w: number, d: number) {
+   530→    const m = addShadow(new THREE.Mesh(new THREE.BoxGeometry(w, 1.5, d), trimMat));
+   531→    m.position.set(x, 0.75, z);
+   532→    root.add(m);
+   533→  }
+   534→
+   535→  // ============================================================
+   536→  // GROUND / EXTERIOR BASE SLAB
+   537→  // ============================================================
+   538→  const baseSlab = addShadow(new THREE.Mesh(
+   539→    new THREE.BoxGeometry(AW + 200, 4, AD + 200),
+   540→    new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.1, roughness: 0.8 })
+   541→  ));
+   542→  // Slab is 4 thick, centered at y=-2.5 → top at y=-0.5 (below apartment floors at y=0.05)
+   543→  // This prevents Z-fighting between slab top and room floor planes.
+   544→  baseSlab.position.set(0, -2.5, 0);
+   545→  root.add(baseSlab);
+   546→
+   547→  const lineMat = new THREE.MeshStandardMaterial({ color: 0xddcc44, metalness: 0.1, roughness: 0.6 });
+   548→  for (let i = -2; i <= 2; i++) {
+   549→    const line = addShadow(new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 60), lineMat));
+   550→    line.position.set(i * 60, 0.6, 100);
+   551→    root.add(line);
+   552→  }
+   553→
+   554→  // ============================================================
+   555→  // FLOOR SLABS (one per room, NO overlaps)
+   556→  // ============================================================
+   557→  // Living room floor (X[-100,30], Z[-70,30])
+   558→  // All room floors sit at y=0.05 — slightly above the slab top (y=-0.5) to prevent Z-fighting.
+   559→  const FLOOR_Y = 0.05;
+   560→  const livingFloorMesh = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(130, 100), livingFloorMat));
+   561→  livingFloorMesh.rotation.x = -Math.PI / 2;
+   562→  livingFloorMesh.position.set(-35, FLOOR_Y, -20);
+   563→  livingFloorMesh.receiveShadow = true;
+   564→  root.add(livingFloorMesh);
+   565→
+   566→  // Kitchen tile overlay (X[-100,-30], Z[-70,-30] — south-west corner of living)
+   567→  // Sits above the living floor (y=0.05) at y=0.1 to prevent Z-fighting with living floor.
+   568→  const kitchenTileOverlay = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(70, 40), kitchenFloorMat));
+   569→  kitchenTileOverlay.rotation.x = -Math.PI / 2;
+   570→  kitchenTileOverlay.position.set(-65, 0.1, -50);
+   571→  kitchenTileOverlay.receiveShadow = true;
+   572→  root.add(kitchenTileOverlay);
+   573→
+   574→  // Hallway floor (X[30,70], Z[-30,30])
+   575→  const hallFloorMesh = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(40, 60), hallFloorMat));
+   576→  hallFloorMesh.rotation.x = -Math.PI / 2;
+   577→  hallFloorMesh.position.set(50, FLOOR_Y, 0);
+   578→  hallFloorMesh.receiveShadow = true;
+   579→  root.add(hallFloorMesh);
+   580→
+   581→  // Bathroom floor (X[70,100], Z[-30,30])
+   582→  const bathFloorMesh = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(30, 60), bathFloorMat));
+   583→  bathFloorMesh.rotation.x = -Math.PI / 2;
+   584→  bathFloorMesh.position.set(85, FLOOR_Y, 0);
+   585→  bathFloorMesh.receiveShadow = true;
+   586→  root.add(bathFloorMesh);
+   587→
+   588→  // Bedroom 1 floor (X[30,100], Z[30,70])
+   589→  const bed1FloorMesh = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(70, 40), bed1FloorMat));
+   590→  bed1FloorMesh.rotation.x = -Math.PI / 2;
+   591→  bed1FloorMesh.position.set(65, FLOOR_Y, 50);
+   592→  bed1FloorMesh.receiveShadow = true;
+   593→  root.add(bed1FloorMesh);
+   594→
+   595→  // Bedroom 2 floor (X[30,100], Z[-70,-30])
+   596→  const bed2FloorMesh = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(70, 40), bed2FloorMat));
+   597→  bed2FloorMesh.rotation.x = -Math.PI / 2;
+   598→  bed2FloorMesh.position.set(65, FLOOR_Y, -50);
+   599→  bed2FloorMesh.receiveShadow = true;
+   600→  root.add(bed2FloorMesh);
+   601→
+   602→  // Balcony floor (X[-100,0], Z[70,120] — OUTSIDE north wall)
+   603→  // Sits at y=0.1 (same level as apartment interior floors, just above slab top at y=-0.5).
+   604→  const balconyFloorMesh = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(100, 50), balconyFloorMat));
+   605→  balconyFloorMesh.rotation.x = -Math.PI / 2;
+   606→  balconyFloorMesh.position.set(-50, 0.1, 95);
+   607→  balconyFloorMesh.receiveShadow = true;
+   608→  root.add(balconyFloorMesh);
+   609→
+   610→  // ============================================================
+   611→  // THRESHOLD STRIPS (brass transition strips at doorways)
+   612→  // ============================================================
+   613→  const thresholds = [
+   614→    { x: 30, z: -5, w: WT, d: 8 },   // living to hallway
+   615→    { x: 70, z: -5, w: WT, d: 8 },   // hallway to bathroom
+   616→    { x: 50, z: 30, w: 8, d: WT },   // hallway to bedroom 1
+   617→    { x: 30, z: -44, w: WT, d: 8 },  // living to bedroom 2
+   618→  ];
+   619→  for (const t of thresholds) {
+   620→    const strip = addShadow(new THREE.Mesh(new THREE.BoxGeometry(t.w, 0.5, t.d), brassMat));
+   621→    strip.position.set(t.x, 0.3, t.z);
+   622→    root.add(strip);
+   623→  }
+   624→
+   625→  // ============================================================
+   626→  // EXTERIOR WALLS
+   627→  // ============================================================
+   628→  // South wall (Z=-70, full width)
+   629→  wall(0, -70 - WT / 2, AW + WT * 2, FH, WT, wallMat, 'wall-south');
+   630→
+   631→  // North wall: split — west segment (X=-100..0) is balcony door opening, east segment (X=0..100) is solid
+   632→  wall(50, 70 + WT / 2, 100 + WT, FH, WT, wallMat, 'wall-north-east');
+   633→
+   634→  // West wall (X=-100, full depth Z=-70..70)
+   635→  wall(-100 - WT / 2, 0, WT, FH, AD + WT * 2, wallMat, 'wall-west');
+   636→
+   637→  // East wall (X=100, full depth Z=-70..70)
+   638→  wall(100 + WT / 2, 0, WT, FH, AD + WT * 2, wallMat, 'wall-east');
+   639→
+   640→  // Balcony walls/railings (outside apartment, Z=70..120):
+   641→  // North railing at Z=120 (glass), West railing at X=-100 (glass), East wall at X=0 (short solid wall for privacy)
+   642→  // These are added later in the balcony section.
+   643→
+   644→  // ============================================================
+   645→  // INTERIOR WALLS
+   646→  // ============================================================
+   647→  // --- Wall at X=30 (Living | Bedroom2 + Hallway) ---
+   648→  // Segments: Z=-70..-48 (solid), Z=-48..-40 (door opening), Z=-40..-30 (solid),
+   649→  //           Z=-30..-9 (solid), Z=-9..-1 (door opening), Z=-1..30 (solid)
+   650→  wall(30, -59, WT, FH, 22, wallMat, 'wall-30-a');       // Z=-70..-48
+   651→  wall(30, -35, WT, FH, 10, wallMat, 'wall-30-b');       // Z=-40..-30
+   652→  wall(30, -19.5, WT, FH, 21, wallMat, 'wall-30-c');     // Z=-30..-9
+   653→  wall(30, 14.5, WT, FH, 31, wallMat, 'wall-30-d');      // Z=-1..30
+   654→  // Headers above doors (16 tall, centered at y=21.95 so top is at y=29.95 — below ceiling at y=29.9)
+   655→  wall(30, -44, WT, 16, 8, wallMat, 'wall-30-hdr-br2', 21.95);  // Z=-48..-40
+   656→  wall(30, -5, WT, 16, 8, wallMat, 'wall-30-hdr-hall', 21.95);  // Z=-9..-1
+   657→
+   658→  // --- Wall at X=70 (Hallway | Bathroom) ---
+   659→  // Segments: Z=-30..-9 (solid), Z=-9..-1 (door opening), Z=-1..30 (solid)
+   660→  wall(70, -19.5, WT, FH, 21, wallMat, 'wall-70-a');     // Z=-30..-9
+   661→  wall(70, 14.5, WT, FH, 31, wallMat, 'wall-70-b');      // Z=-1..30
+   662→  wall(70, -5, WT, 16, 8, wallMat, 'wall-70-hdr', 21.95);   // Z=-9..-1
+   663→
+   664→  // --- Wall at Z=-30 (Bedroom2 | Hallway+Bathroom) ---
+   665→  // Full segment: X=30..100 (70 long), no door (BR2 accessed from X=30 wall)
+   666→  wall(65, -30, 70, FH, WT, wallMat, 'wall-zneg30');
+   667→
+   668→  // --- Wall at Z=30 (Bedroom1 | Hallway+Bathroom) ---
+   669→  // Segments: X=30..46 (solid), X=46..54 (door opening), X=54..100 (solid)
+   670→  wall(38, 30, 16, FH, WT, wallMat, 'wall-zpos30-a');    // X=30..46
+   671→  wall(77, 30, 46, FH, WT, wallMat, 'wall-zpos30-b');    // X=54..100
+   672→  wall(50, 30, 8, 16, WT, wallMat, 'wall-zpos30-hdr', 21.95); // X=46..54
+   673→
+   674→  // ============================================================
+   675→  // ACCENT WALL (living room, on the east side — X=30 wall facing west)
+   676→  // ============================================================
+   677→  // Accent panel — height FH-0.2=29.8, centered at y=(FH-0.2)/2=14.9, so top at y=29.8 (below ceiling at 29.9)
+   678→  const accentPanel = addShadow(new THREE.Mesh(
+   679→    new THREE.PlaneGeometry(80, FH - 0.2),
+   680→    accentWallMat
+   681→  ));
+   682→  accentPanel.position.set(29.8, (FH - 0.2) / 2, -10);
+   683→  accentPanel.rotation.y = -Math.PI / 2;  // faces -X (west, into living room)
+   684→  root.add(accentPanel);
+   685→
+   686→  // ============================================================
+   687→  // BATHROOM TILE WALLS (subway tile on interior faces)
+   688→  // Bathroom: X[70,100], Z[-30,30]
+   689→  // ============================================================
+   690→  // All bathroom tile panels: height FH-0.2=29.8, centered at y=(FH-0.2)/2=14.9, so top at y=29.8 (below ceiling at 29.9).
+   691→  // This prevents Z-fighting at the ceiling line.
+   692→  const TILE_H = FH - 0.2;
+   693→  const TILE_Y = TILE_H / 2;
+   694→  // South wall interior face (Z=-30+WT, faces +Z)
+   695→  const bathTileSouth = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(30 - WT, TILE_H), bathWallMat));
+   696→  bathTileSouth.position.set(85, TILE_Y, -30 + WT);
+   697→  root.add(bathTileSouth);
+   698→  // North wall interior face (Z=30-WT, faces -Z)
+   699→  const bathTileNorth = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(30 - WT, TILE_H), bathWallMat));
+   700→  bathTileNorth.position.set(85, TILE_Y, 30 - WT);
+   701→  bathTileNorth.rotation.y = Math.PI;
+   702→  root.add(bathTileNorth);
+   703→  // West wall interior face (X=70+WT, faces +X)
+   704→  const bathTileWest = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(60 - WT, TILE_H), bathWallMat));
+   705→  bathTileWest.position.set(70 + WT, TILE_Y, 0);
+   706→  bathTileWest.rotation.y = Math.PI / 2;
+   707→  root.add(bathTileWest);
+   708→  // East wall interior face (X=100-WT, faces -X)
+   709→  const bathTileEast = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(60 - WT, TILE_H), bathWallMat));
+   710→  bathTileEast.position.set(100 - WT, TILE_Y, 0);
+   711→  bathTileEast.rotation.y = -Math.PI / 2;
+   712→  root.add(bathTileEast);
+   713→
+   714→  // ============================================================
+   715→  // KITCHEN BACKSPLASH (on west wall, behind west counter)
+   716→  // West counter is at X=-94, Z=-50. Backsplash above counter, on wall.
+   717→  // Backsplash: 12 tall, centered at y=15 (spans y=9..21) — well below ceiling.
+   718→  // ============================================================
+   719→  const backsplash = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(40, 12), backsplashMat));
+   720→  backsplash.position.set(-99.5, 15, -50);  // just in front of west wall (X=-100), above counter
+   721→  backsplash.rotation.y = Math.PI / 2;  // faces +X (east, into kitchen)
+   722→  root.add(backsplash);
+   723→
+   724→  // ============================================================
+   725→  // CEILING
+   726→  // Ceiling sits at y=FH-0.1=29.9 — slightly below wall tops (y=30) to prevent Z-fighting
+   727→  // with wall tops, door header tops, bathroom tile panel tops, and accent panel top.
+   728→  // ============================================================
+   729→  const ceiling = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(AW, AD), ceilMat));
+   730→  ceiling.rotation.x = Math.PI / 2;
+   731→  ceiling.position.set(0, FH - 0.1, 0);
+   732→  ceiling.receiveShadow = true;
+   733→  root.add(ceiling);
+   734→
+   735→  // ============================================================
+   736→  // CEILING RECESSED LIGHTS
+   737→  // ============================================================
+   738→  const lightFixtureMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4cc, emissiveIntensity: 0.8, metalness: 0.4, roughness: 0.3 });
+   739→  const lightPositions: [number, number][] = [
+   740→    [-80, -55], [-50, -55], [-80, -20], [-50, -20], [-20, -50], [-20, -10],  // living + kitchen
+   741→    [50, -15], [50, 15],                                                       // hallway
+   742→    [85, -15], [85, 15],                                                       // bathroom
+   743→    [55, 50], [80, 50],                                                        // bedroom 1
+   744→    [55, -50], [80, -50],                                                      // bedroom 2
+   745→  ];
+   746→  for (const [lx, lz] of lightPositions) {
+   747→    const fixture = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 1, 16), lightFixtureMat));
+   748→    fixture.position.set(lx, FH - 0.5, lz);
+   749→    root.add(fixture);
+   750→    const ptLight = new THREE.PointLight(0xfff4cc, 0.5, 80, 1.5);
+   751→    ptLight.position.set(lx, FH - 3, lz);
+   752→    ptLight.castShadow = false;
+   753→    root.add(ptLight);
+   754→  }
+   755→
+   756→  // ============================================================
+   757→  // BASEBOARDS
+   758→  // ============================================================
+   759→  // Living room perimeter (X[-100,30], Z[-70,30])
+   760→  baseboard(-99, -20, 1, 100);   // west wall (Z=-70..30)
+   761→  baseboard(-35, 29, 130, 1);    // south wall (X=-100..30) — wait, south is Z=-70
+   762→  baseboard(-35, -69, 130, 1);   // south wall (X=-100..30, Z=-70)
+   763→  baseboard(-35, 29, 130, 1);    // north wall of living (X=-100..30, Z=30) — but Z=30 is interior wall
+   764→  // East wall of living (X=30, Z=-70..30) — has 2 doorways, split into segments
+   765→  baseboard(29, -59, 1, 22);     // Z=-70..-48
+   766→  baseboard(29, -35, 1, 10);     // Z=-40..-30
+   767→  baseboard(29, -19.5, 1, 21);   // Z=-30..-9
+   768→  baseboard(29, 14.5, 1, 31);    // Z=-1..30
+   769→
+   770→  // Hallway perimeter (X[30,70], Z[-30,30])
+   771→  baseboard(69, 0, 1, 60);       // east wall (X=70, Z=-30..30) — has doorway, but baseboard can be continuous under header
+   772→  baseboard(50, -29, 40, 1);     // south wall (Z=-30)
+   773→  baseboard(50, 29, 40, 1);      // north wall (Z=30) — has doorway
+   774→
+   775→  // Bathroom perimeter (X[70,100], Z[-30,30])
+   776→  baseboard(99, 0, 1, 60);       // east wall
+   777→  baseboard(85, -29, 30, 1);     // south wall
+   778→  baseboard(85, 29, 30, 1);      // north wall
+   779→  baseboard(71, 0, 1, 60);       // west wall
+   780→
+   781→  // Bedroom 1 perimeter (X[30,100], Z[30,70])
+   782→  baseboard(99, 50, 1, 40);      // east wall
+   783→  baseboard(65, 69, 70, 1);      // north wall
+   784→  baseboard(65, 31, 70, 1);      // south wall (Z=30) — has doorway
+   785→  baseboard(31, 50, 1, 40);      // west wall (X=30)
+   786→
+   787→  // Bedroom 2 perimeter (X[30,100], Z[-70,-30])
+   788→  baseboard(99, -50, 1, 40);     // east wall
+   789→  baseboard(65, -69, 70, 1);     // south wall
+   790→  baseboard(65, -31, 70, 1);     // north wall (Z=-30)
+   791→  baseboard(31, -50, 1, 40);     // west wall (X=30) — has doorway
+   792→
+   793→  // ============================================================
+   794→  // WINDOWS
+   795→  // ============================================================
+   796→  function windowFrame(cx: number, cz: number, w: number, h: number, facing: 'south' | 'north' | 'east' | 'west') {
+   797→    const frameGroup = new THREE.Group();
+   798→    const glass = new THREE.Mesh(new THREE.PlaneGeometry(w - 4, h - 4), glassMat);
+   799→    glass.position.set(cx, h / 2 + 4, cz);
+   800→    if (facing === 'south') glass.rotation.y = 0;
+   801→    if (facing === 'north') glass.rotation.y = Math.PI;
+   802→    if (facing === 'east') glass.rotation.y = -Math.PI / 2;
+   803→    if (facing === 'west') glass.rotation.y = Math.PI / 2;
+   804→    frameGroup.add(glass);
+   805→    function frPart(x: number, y: number, z: number, fw: number, fh: number, fd: number) {
+   806→      const m = addShadow(new THREE.Mesh(new THREE.BoxGeometry(fw, fh, fd), windowFrameMat));
+   807→      m.position.set(x, y, z);
+   808→      frameGroup.add(m);
+   809→    }
+   810→    if (facing === 'south' || facing === 'north') {
+   811→      frPart(cx - w / 2, h / 2 + 4, cz, 1, h, 1);
+   812→      frPart(cx + w / 2, h / 2 + 4, cz, 1, h, 1);
+   813→      frPart(cx, h + 4, cz, w, 1, 1);
+   814→      frPart(cx, 4, cz, w, 1, 1);
+   815→      frPart(cx, h / 2 + 4, cz, 1, h, 1);
+   816→      frPart(cx, h / 2 + 4, cz, w, 1, 1);
+   817→    } else {
+   818→      frPart(cx, h / 2 + 4, cz - w / 2, 1, h, 1);
+   819→      frPart(cx, h / 2 + 4, cz + w / 2, 1, h, 1);
+   820→      frPart(cx, h + 4, cz, 1, 1, w);
+   821→      frPart(cx, 4, cz, 1, 1, w);
+   822→      frPart(cx, h / 2 + 4, cz, 1, h, 1);
+   823→      frPart(cx, h / 2 + 4, cz, 1, 1, w);
+   824→    }
+   825→    root.add(frameGroup);
+   826→  }
+   827→
+   828→  // South-facing windows (living room + bedroom 2)
+   829→  windowFrame(-70, -70 + WT / 2, 50, 22, 'south');   // living window 1
+   830→  windowFrame(-20, -70 + WT / 2, 40, 22, 'south');   // living window 2
+   831→  windowFrame(60, -70 + WT / 2, 30, 20, 'south');    // bedroom 2 window
+   832→  // North-facing window (bedroom 1)
+   833→  windowFrame(60, 70 - WT / 2, 40, 22, 'north');
+   834→  // East-facing window (bathroom)
+   835→  windowFrame(100 - WT / 2, 0, 20, 16, 'east');
+   836→  // West-facing window (kitchen above sink)
+   837→  windowFrame(-100 + WT / 2, -50, 30, 20, 'west');
+   838→
+   839→  // ============================================================
+   840→  // LIVING ROOM FURNITURE
+   841→  // Living: X[-100,30], Z[-70,30]. Kitchen in SW corner X[-100,-30], Z[-70,-30].
+   842→  // ============================================================
+   843→
+   844→  // --- Sectional sofa (L-shape) in the east part of living ---
+   845→  // Main sofa: along south area, facing north
+   846→  const sofa1 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(50, 8, 16), sofaMat));
+   847→  sofa1.position.set(-10, 4, -55);
+   848→  root.add(sofa1);
+   849→  for (let i = 0; i < 4; i++) {
+   850→    const cushion = addShadow(new THREE.Mesh(new THREE.BoxGeometry(11, 2, 12), sofaMat));
+   851→    cushion.position.set(-10 - 18 + i * 12, 9, -55);
+   852→    root.add(cushion);
+   853→  }
+   854→  for (let i = 0; i < 4; i++) {
+   855→    const bc = addShadow(new THREE.Mesh(new THREE.BoxGeometry(11, 8, 3), sofaMat));
+   856→    bc.position.set(-10 - 18 + i * 12, 11, -60);
+   857→    root.add(bc);
+   858→  }
+   859→  // L-arm: extends north from the east end of sofa1
+   860→  const sofa2 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(16, 8, 30), sofaMat));
+   861→  sofa2.position.set(16, 4, -40);
+   862→  root.add(sofa2);
+   863→
+   864→  // Accent chair
+   865→  const accentChair = addShadow(new THREE.Mesh(new THREE.BoxGeometry(14, 8, 14), accentChairMat));
+   866→  accentChair.position.set(-25, 4, -25);
+   867→  root.add(accentChair);
+   868→  const accentChairBack = addShadow(new THREE.Mesh(new THREE.BoxGeometry(14, 12, 3), accentChairMat));
+   869→  accentChairBack.position.set(-25, 10, -19);
+   870→  root.add(accentChairBack);
+   871→
+   872→  // Coffee table (oak)
+   873→  const coffeeTable = addShadow(new THREE.Mesh(new THREE.BoxGeometry(30, 2, 16), oakTableMat));
+   874→  coffeeTable.position.set(-10, 4, -40);
+   875→  root.add(coffeeTable);
+   876→  for (const [lx, lz] of [[-23, -46], [3, -46], [-23, -34], [3, -34]]) {
+   877→    const leg = addShadow(new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), darkTrimMat));
+   878→    leg.position.set(lx, 2, lz);
+   879→    root.add(leg);
+   880→  }
+   881→
+   882→  // Area rug under coffee table (sits above the living floor at y=0.05)
+   883→  const areaRug = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(50, 30), rugMat));
+   884→  areaRug.rotation.x = -Math.PI / 2;
+   885→  areaRug.position.set(-10, 0.15, -40);
+   886→  root.add(areaRug);
+   887→
+   888→  // --- TV media console against east wall (X=30, facing west into living) ---
+   889→  const mediaConsole = addShadow(new THREE.Mesh(new THREE.BoxGeometry(12, 6, 50), woodFurnMat));
+   890→  mediaConsole.position.set(24, 3, -10);  // X=18..30, Z=-35..15
+   891→  root.add(mediaConsole);
+   892→  // TV mounted on X=30 wall, facing west
+   893→  const tvFrame = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1.5, 22, 40), darkTrimMat));
+   894→  tvFrame.position.set(29.25, 18, -10);  // back at X=30, front at X=28.5
+   895→  root.add(tvFrame);
+   896→  const tvScreen = new THREE.Mesh(
+   897→    new THREE.PlaneGeometry(38, 20),
+   898→    new THREE.MeshStandardMaterial({ color: 0x0a0a14, emissive: 0x0a1a2a, emissiveIntensity: 0.4, metalness: 0.3, roughness: 0.2 })
+   899→  );
+   900→  tvScreen.position.set(28.4, 18, -10);
+   901→  tvScreen.rotation.y = -Math.PI / 2;  // faces -X (west)
+   902→  root.add(tvScreen);
+   903→
+   904→  // Floor lamp next to sofa
+   905→  const lampPole = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30, 8), darkTrimMat));
+   906→  lampPole.position.set(20, 15, -60);
+   907→  root.add(lampPole);
+   908→  const lampShade = addShadow(new THREE.Mesh(
+   909→    new THREE.ConeGeometry(4, 6, 12, 1, true),
+   910→    new THREE.MeshStandardMaterial({ color: 0xf0e4c0, emissive: 0xfff0a0, emissiveIntensity: 0.3, metalness: 0.1, roughness: 0.6 })
+   911→  ));
+   912→  lampShade.position.set(20, 32, -60);
+   913→  root.add(lampShade);
+   914→  const lampLight = new THREE.PointLight(0xffe8a0, 0.5, 50, 2);
+   915→  lampLight.position.set(20, 30, -60);
+   916→  root.add(lampLight);
+   917→
+   918→  // Bookshelf against east wall (X=30)
+   919→  const bookshelf = addShadow(new THREE.Mesh(new THREE.BoxGeometry(6, 24, 40), woodFurnMat));
+   920→  bookshelf.position.set(27, 12, 15);  // X=24..30, Z=-5..35 → wait, Z=35 is past living (Z=30). Fix Z.
+   921→  bookshelf.position.set(27, 12, 10);  // X=24..30, Z=-10..30 ✓
+   922→  root.add(bookshelf);
+   923→  const bookColors = [0x8b3a3a, 0x2a5a8a, 0x3a5a2a, 0x8a6a3a, 0x5a3a8a, 0x8a8a3a, 0x3a8a5a];
+   924→  for (let shelf = 0; shelf < 3; shelf++) {
+   925→    for (let i = 0; i < 8; i++) {
+   926→      const book = addShadow(new THREE.Mesh(
+   927→        new THREE.BoxGeometry(3, 6, 2.5 + Math.random() * 1.5),
+   928→        new THREE.MeshStandardMaterial({ color: bookColors[(shelf * 8 + i) % bookColors.length], roughness: 0.7 })
+   929→      ));
+   930→      book.position.set(26.5, 4 + shelf * 8, -8 + i * 4);  // books on the shelf, facing west
+   931→      root.add(book);
+   932→    }
+   933→  }
+   934→
+   935→  // Potted plant (fiddle leaf fig) in NE corner of living
+   936→  const pot = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(4, 3, 6, 16), potMat));
+   937→  pot.position.set(20, 3, 20);
+   938→  root.add(pot);
+   939→  const trunk = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 24, 8), woodFurnMat));
+   940→  trunk.position.set(20, 18, 20);
+   941→  root.add(trunk);
+   942→  for (let i = 0; i < 8; i++) {
+   943→    const leaf = addShadow(new THREE.Mesh(
+   944→      new THREE.SphereGeometry(4 + Math.random() * 2, 8, 6),
+   945→      new THREE.MeshStandardMaterial({ color: 0x3a6a3a, roughness: 0.8 })
+   946→    ));
+   947→    leaf.position.set(20 + (Math.random() - 0.5) * 10, 26 + Math.random() * 6, 20 + (Math.random() - 0.5) * 10);
+   948→    leaf.scale.set(1, 0.3, 1);
+   949→    root.add(leaf);
+   950→  }
+   951→
+   952→  // ============================================================
+   953→  // KITCHEN FURNITURE (SW corner of living: X[-100,-30], Z[-70,-30])
+   954→  // ============================================================
+   955→  const counterH = 9;
+   956→
+   957→  // West counter (along west wall X=-100, runs Z=-70..-30)
+   958→  const counter1 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(10, counterH, 40), cabinetMat));
+   959→  counter1.position.set(-94, counterH / 2, -50);  // X=-99..-89, Z=-70..-30
+   960→  root.add(counter1);
+   961→  const counterTop1 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(12, 1, 42), counterMat));
+   962→  counterTop1.position.set(-93, counterH + 0.5, -50);
+   963→  root.add(counterTop1);
+   964→
+   965→  // South counter (along south wall Z=-70, runs X=-50..0)
+   966→  const counter2 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(50, counterH, 10), cabinetMat));
+   967→  counter2.position.set(-25, counterH / 2, -65);  // X=-50..0, Z=-70..-60
+   968→  root.add(counter2);
+   969→  const counterTop2 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(52, 1, 12), counterMat));
+   970→  counterTop2.position.set(-25, counterH + 0.5, -65);
+   971→  root.add(counterTop2);
+   972→
+   973→  // Kitchen island (center of kitchen area)
+   974→  const island = addShadow(new THREE.Mesh(new THREE.BoxGeometry(30, counterH, 14), whiteCabinetMat));
+   975→  island.position.set(-65, counterH / 2, -50);  // X=-80..-50, Z=-57..-43
+   976→  root.add(island);
+   977→  const islandTop = addShadow(new THREE.Mesh(new THREE.BoxGeometry(32, 1, 16), marbleCounterMat));
+   978→  islandTop.position.set(-65, counterH + 0.5, -50);
+   979→  root.add(islandTop);
+   980→
+   981→  // Bar stools (north side of island, facing south)
+   982→  for (const sx of [-72, -58]) {
+   983→    const stool = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 6, 12), darkTrimMat));
+   984→    stool.position.set(sx, 3, -36);
+   985→    root.add(stool);
+   986→    const stoolSeat = addShadow(new THREE.Mesh(
+   987→      new THREE.CylinderGeometry(3, 3, 1, 12),
+   988→      new THREE.MeshStandardMaterial({ color: 0xc09545, metalness: 0.5, roughness: 0.3 })
+   989→    ));
+   990→    stoolSeat.position.set(sx, 6.5, -36);
+   991→    root.add(stoolSeat);
+   992→  }
+   993→
+   994→  // Stove (on west counter, at Z=-60)
+   995→  const stoveBody = addShadow(new THREE.Mesh(new THREE.BoxGeometry(10, 1, 14), applianceMat));
+   996→  stoveBody.position.set(-93, counterH + 1, -60);
+   997→  root.add(stoveBody);
+   998→  for (const [bx, bz] of [[-95, -62], [-91, -62], [-95, -58], [-91, -58]]) {
+   999→    const burner = addShadow(new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.3, 8, 16), darkTrimMat));
+  1000→    burner.position.set(bx, counterH + 1.5, bz);
+  1001→    burner.rotation.x = Math.PI / 2;
+  1002→    root.add(burner);
+  1003→  }
+  1004→  // Range hood above stove
+  1005→  const hood = addShadow(new THREE.Mesh(new THREE.BoxGeometry(14, 5, 10), applianceMat));
+  1006→  hood.position.set(-93, 22, -60);
+  1007→  root.add(hood);
+  1008→
+  1009→  // Refrigerator (at corner of south counter, east end)
+  1010→  const fridge = addShadow(new THREE.Mesh(new THREE.BoxGeometry(14, 24, 10), applianceMat));
+  1011→  fridge.position.set(-7, 12, -65);  // X=-14..0, Z=-70..-60
+  1012→  root.add(fridge);
+  1013→  const fridgeHandle = addShadow(new THREE.Mesh(new THREE.BoxGeometry(0.5, 10, 1), darkTrimMat));
+  1014→  fridgeHandle.position.set(-1, 14, -65);
+  1015→  root.add(fridgeHandle);
+  1016→
+  1017→  // Sink (on south counter)
+  1018→  const sinkBasin = addShadow(new THREE.Mesh(
+  1019→    new THREE.BoxGeometry(12, 1, 6),
+  1020→    new THREE.MeshStandardMaterial({ color: 0xa8a8b0, metalness: 0.8, roughness: 0.2 })
+  1021→  ));
+  1022→  sinkBasin.position.set(-25, counterH + 0.3, -65);
+  1023→  root.add(sinkBasin);
+  1024→  const faucetBase = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1, 8), brassMat));
+  1025→  faucetBase.position.set(-25, counterH + 1, -69);
+  1026→  root.add(faucetBase);
+  1027→  const faucetSpout = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 6, 8), brassMat));
+  1028→  faucetSpout.position.set(-25, counterH + 4, -69);
+  1029→  faucetSpout.rotation.z = Math.PI / 2;
+  1030→  root.add(faucetSpout);
+  1031→
+  1032→  // Pendant lights over island (3)
+  1033→  for (const px of [-75, -65, -55]) {
+  1034→    const pendant = addShadow(new THREE.Mesh(
+  1035→      new THREE.ConeGeometry(2.5, 4, 12, 1, true),
+  1036→      new THREE.MeshStandardMaterial({ color: 0xc09545, metalness: 0.7, roughness: 0.3, emissive: 0xffc060, emissiveIntensity: 0.2 })
+  1037→    ));
+  1038→    pendant.position.set(px, 22, -50);
+  1039→    root.add(pendant);
+
+[showing lines 500-1039 of 1558; use offset=1040 with limit to continue reading]

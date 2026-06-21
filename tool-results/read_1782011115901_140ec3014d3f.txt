@@ -1,0 +1,1617 @@
+     1→// ====================== GROCERY STORE ======================
+     2→// A detailed modern supermarket / grocery store interior.
+     3→// Scale: 10 units = 1 meter. Store footprint: 60m x 40m (600 x 400 units),
+     4→// ceiling height 5m (50 units).
+     5→//
+     6→// Layout:
+     7→//   - Entrance vestibule (south end) with automatic sliding doors
+     8→//   - Produce section (front-left, with display bins, misted greens, fruit pyramids)
+     9→//   - Bakery (front-right, with display case, bread shelves, pastry case)
+    10→//   - 8 grocery aisles (center, with shelving units stocked with colored product boxes)
+    11→//   - Deli counter (back-left, with glass case, slicer, prepared foods)
+    12→//   - Dairy / refrigerated wall (back wall, glass-door coolers)
+    13→//   - Frozen food aisles (back-right, chest freezers + vertical freezer cases)
+    14→//   - 6 checkout lanes (front center, with registers, conveyor belts, bagging areas)
+    15→//   - Customer service desk (front-right corner)
+    16→//   - Storage / back room (north wall, behind dairy)
+    17→//   - Hanging category signage, overhead fluorescent lighting, tiled floor
+    18→
+    19→import * as THREE from 'three';
+    20→import { addShadow, metal, darkSteel, aluminum, plastic, rubber } from './materials-dsl';
+    21→import { makeTileTexture, makeConcreteTexture, makeWoodTexture, makeCarpetTexture } from './building-textures';
+    22→
+    23→// ---------- Local texture helpers ----------
+    24→
+    25→// Floor: large commercial tiles (60cm squares) — light cream with subtle grout
+    26→function storeFloorTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+    27→  const size = 512;
+    28→  const canvas = document.createElement('canvas');
+    29→  canvas.width = size; canvas.height = size;
+    30→  const ctx = canvas.getContext('2d')!;
+    31→  // Base cream color
+    32→  ctx.fillStyle = '#e8e4d8';
+    33→  ctx.fillRect(0, 0, size, size);
+    34→  // Tile grid: 4 tiles per texture (each 128px = ~0.6m at scale)
+    35→  const tileSize = size / 4;
+    36→  for (let tx = 0; tx < 4; tx++) {
+    37→    for (let ty = 0; ty < 4; ty++) {
+    38→      // Subtle per-tile color variation
+    39→      const v = (Math.sin(tx * 1.7 + ty * 2.3) + 1) * 0.5;
+    40→      const shade = 232 + Math.floor(v * 12);
+    41→      ctx.fillStyle = `rgb(${shade}, ${shade - 4}, ${shade - 16})`;
+    42→      ctx.fillRect(tx * tileSize + 1, ty * tileSize + 1, tileSize - 2, tileSize - 2);
+    43→      // Speckle texture (commercial tile has tiny dots)
+    44→      ctx.fillStyle = 'rgba(180,170,150,0.15)';
+    45→      for (let i = 0; i < 40; i++) {
+    46→        ctx.fillRect(
+    47→          tx * tileSize + 2 + Math.random() * (tileSize - 4),
+    48→          ty * tileSize + 2 + Math.random() * (tileSize - 4),
+    49→          1, 1
+    50→        );
+    51→      }
+    52→    }
+    53→  }
+    54→  // Grout lines
+    55→  ctx.strokeStyle = '#b8b0a0';
+    56→  ctx.lineWidth = 2;
+    57→  for (let i = 0; i <= 4; i++) {
+    58→    ctx.beginPath(); ctx.moveTo(i * tileSize, 0); ctx.lineTo(i * tileSize, size); ctx.stroke();
+    59→    ctx.beginPath(); ctx.moveTo(0, i * tileSize); ctx.lineTo(size, i * tileSize); ctx.stroke();
+    60→  }
+    61→  const map = new THREE.CanvasTexture(canvas);
+    62→  map.wrapS = THREE.RepeatWrapping; map.wrapT = THREE.RepeatWrapping;
+    63→  map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+    64→
+    65→  // Bump map
+    66→  const bumpCanvas = document.createElement('canvas');
+    67→  bumpCanvas.width = size; bumpCanvas.height = size;
+    68→  const bctx = bumpCanvas.getContext('2d')!;
+    69→  bctx.fillStyle = '#a0a0a0'; bctx.fillRect(0, 0, size, size);
+    70→  bctx.fillStyle = '#c0c0c0';
+    71→  for (let tx = 0; tx < 4; tx++) {
+    72→    for (let ty = 0; ty < 4; ty++) {
+    73→      bctx.fillRect(tx * tileSize + 1, ty * tileSize + 1, tileSize - 2, tileSize - 2);
+    74→    }
+    75→  }
+    76→  bctx.fillStyle = '#505050';
+    77→  for (let i = 0; i <= 4; i++) {
+    78→    bctx.fillRect(i * tileSize - 1, 0, 2, size);
+    79→    bctx.fillRect(0, i * tileSize - 1, size, 2);
+    80→  }
+    81→  const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+    82→  bumpMap.wrapS = THREE.RepeatWrapping; bumpMap.wrapT = THREE.RepeatWrapping;
+    83→  return { map, bumpMap };
+    84→}
+    85→
+    86→// Produce section floor: slightly different warmer tile
+    87→function produceFloorTexture(): { map: THREE.CanvasTexture; bumpMap: THREE.CanvasTexture } {
+    88→  const size = 512;
+    89→  const canvas = document.createElement('canvas');
+    90→  canvas.width = size; canvas.height = size;
+    91→  const ctx = canvas.getContext('2d')!;
+    92→  ctx.fillStyle = '#d8c8a8'; // warm sandy tile for produce area
+    93→  ctx.fillRect(0, 0, size, size);
+    94→  const tileSize = size / 4;
+    95→  for (let tx = 0; tx < 4; tx++) {
+    96→    for (let ty = 0; ty < 4; ty++) {
+    97→      const v = (Math.sin(tx * 2.1 + ty * 1.7) + 1) * 0.5;
+    98→      const shade = 216 + Math.floor(v * 10);
+    99→      ctx.fillStyle = `rgb(${shade}, ${shade - 12}, ${shade - 40})`;
+   100→      ctx.fillRect(tx * tileSize + 1, ty * tileSize + 1, tileSize - 2, tileSize - 2);
+   101→    }
+   102→  }
+   103→  ctx.strokeStyle = '#a89878';
+   104→  ctx.lineWidth = 2;
+   105→  for (let i = 0; i <= 4; i++) {
+   106→    ctx.beginPath(); ctx.moveTo(i * tileSize, 0); ctx.lineTo(i * tileSize, size); ctx.stroke();
+   107→    ctx.beginPath(); ctx.moveTo(0, i * tileSize); ctx.lineTo(size, i * tileSize); ctx.stroke();
+   108→  }
+   109→  const map = new THREE.CanvasTexture(canvas);
+   110→  map.wrapS = THREE.RepeatWrapping; map.wrapT = THREE.RepeatWrapping;
+   111→  map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+   112→
+   113→  const bumpCanvas = document.createElement('canvas');
+   114→  bumpCanvas.width = size; bumpCanvas.height = size;
+   115→  const bctx = bumpCanvas.getContext('2d')!;
+   116→  bctx.fillStyle = '#a0a0a0'; bctx.fillRect(0, 0, size, size);
+   117→  bctx.fillStyle = '#c0c0c0';
+   118→  for (let tx = 0; tx < 4; tx++) {
+   119→    for (let ty = 0; ty < 4; ty++) {
+   120→      bctx.fillRect(tx * tileSize + 1, ty * tileSize + 1, tileSize - 2, tileSize - 2);
+   121→    }
+   122→  }
+   123→  bctx.fillStyle = '#505050';
+   124→  for (let i = 0; i <= 4; i++) {
+   125→    bctx.fillRect(i * tileSize - 1, 0, 2, size);
+   126→    bctx.fillRect(0, i * tileSize - 1, size, 2);
+   127→  }
+   128→  const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+   129→  bumpMap.wrapS = THREE.RepeatWrapping; bumpMap.wrapT = THREE.RepeatWrapping;
+   130→  return { map, bumpMap };
+   131→}
+   132→
+   133→// Shelf label / price tag texture
+   134→function priceTagTexture(item: string, price: string): THREE.CanvasTexture {
+   135→  const w = 256, h = 64;
+   136→  const canvas = document.createElement('canvas');
+   137→  canvas.width = w; canvas.height = h;
+   138→  const ctx = canvas.getContext('2d')!;
+   139→  // Yellow price tag background
+   140→  ctx.fillStyle = '#fff4a0';
+   141→  ctx.fillRect(0, 0, w, h);
+   142→  ctx.strokeStyle = '#c8a020';
+   143→  ctx.lineWidth = 2;
+   144→  ctx.strokeRect(2, 2, w - 4, h - 4);
+   145→  // Item name
+   146→  ctx.fillStyle = '#1a1a1a';
+   147→  ctx.font = 'bold 18px Arial';
+   148→  ctx.textAlign = 'left';
+   149→  ctx.textBaseline = 'middle';
+   150→  ctx.fillText(item, 10, 20);
+   151→  // Price (large)
+   152→  ctx.fillStyle = '#c02020';
+   153→  ctx.font = 'bold 28px Arial';
+   154→  ctx.fillText(price, 10, 46);
+   155→  const tex = new THREE.CanvasTexture(canvas);
+   156→  tex.colorSpace = THREE.SRGBColorSpace;
+   157→  return tex;
+   158→}
+   159→
+   160→// Aisle number sign texture
+   161→function aisleSignTexture(num: number, category: string): THREE.CanvasTexture {
+   162→  const w = 384, h = 128;
+   163→  const canvas = document.createElement('canvas');
+   164→  canvas.width = w; canvas.height = h;
+   165→  const ctx = canvas.getContext('2d')!;
+   166→  // Red sign background
+   167→  ctx.fillStyle = '#c8202a';
+   168→  ctx.fillRect(0, 0, w, h);
+   169→  // White border
+   170→  ctx.strokeStyle = '#ffffff';
+   171→  ctx.lineWidth = 4;
+   172→  ctx.strokeRect(6, 6, w - 12, h - 12);
+   173→  // "AISLE" text
+   174→  ctx.fillStyle = '#ffffff';
+   175→  ctx.font = 'bold 22px Arial';
+   176→  ctx.textAlign = 'center';
+   177→  ctx.textBaseline = 'middle';
+   178→  ctx.fillText('AISLE', w / 2, 28);
+   179→  // Big number
+   180→  ctx.font = 'bold 56px Arial';
+   181→  ctx.fillText(String(num), w / 2, 70);
+   182→  // Category
+   183→  ctx.font = 'bold 16px Arial';
+   184→  ctx.fillText(category.toUpperCase(), w / 2, 108);
+   185→  const tex = new THREE.CanvasTexture(canvas);
+   186→  tex.colorSpace = THREE.SRGBColorSpace;
+   187→  return tex;
+   188→}
+   189→
+   190→// Hanging category banner (wide)
+   191→function categoryBannerTexture(text: string, bgColor: string): THREE.CanvasTexture {
+   192→  const w = 512, h = 128;
+   193→  const canvas = document.createElement('canvas');
+   194→  canvas.width = w; canvas.height = h;
+   195→  const ctx = canvas.getContext('2d')!;
+   196→  ctx.fillStyle = bgColor;
+   197→  ctx.fillRect(0, 0, w, h);
+   198→  ctx.strokeStyle = '#ffffff';
+   199→  ctx.lineWidth = 5;
+   200→  ctx.strokeRect(8, 8, w - 16, h - 16);
+   201→  ctx.fillStyle = '#ffffff';
+   202→  ctx.font = 'bold 52px Arial';
+   203→  ctx.textAlign = 'center';
+   204→  ctx.textBaseline = 'middle';
+   205→  ctx.fillText(text.toUpperCase(), w / 2, h / 2);
+   206→  const tex = new THREE.CanvasTexture(canvas);
+   207→  tex.colorSpace = THREE.SRGBColorSpace;
+   208→  return tex;
+   209→}
+   210→
+   211→// Product box texture (simulates a grocery product package with brand + label)
+   212→function productBoxTexture(name: string, color: string, accentColor: string): THREE.CanvasTexture {
+   213→  const w = 128, h = 256;
+   214→  const canvas = document.createElement('canvas');
+   215→  canvas.width = w; canvas.height = h;
+   216→  const ctx = canvas.getContext('2d')!;
+   217→  // Base product color
+   218→  ctx.fillStyle = color;
+   219→  ctx.fillRect(0, 0, w, h);
+   220→  // Accent band (top third)
+   221→  ctx.fillStyle = accentColor;
+   222→  ctx.fillRect(0, 0, w, 60);
+   223→  // Brand area (white box on accent band)
+   224→  ctx.fillStyle = '#ffffff';
+   225→  ctx.fillRect(10, 10, w - 20, 40);
+   226→  ctx.fillStyle = accentColor;
+   227→  ctx.font = 'bold 14px Arial';
+   228→  ctx.textAlign = 'center';
+   229→  ctx.textBaseline = 'middle';
+   230→  ctx.fillText('BRAND', w / 2, 30);
+   231→  // Product name
+   232→  ctx.fillStyle = '#ffffff';
+   233→  ctx.font = 'bold 16px Arial';
+   234→  ctx.fillText(name, w / 2, 100);
+   235→  // Decorative stripe
+   236→  ctx.fillStyle = accentColor;
+   237→  ctx.fillRect(0, 130, w, 4);
+   238→  // "NET WT" area
+   239→  ctx.fillStyle = '#ffffff';
+   240→  ctx.font = '10px Arial';
+   241→  ctx.fillText('NET WT 12 OZ', w / 2, 160);
+   242→  ctx.fillText('340g', w / 2, 175);
+   243→  // Barcode (fake vertical lines)
+   244→  ctx.fillStyle = '#1a1a1a';
+   245→  for (let i = 0; i < 30; i++) {
+   246→    const bx = 20 + i * 3;
+   247→    if (Math.random() > 0.4) {
+   248→      ctx.fillRect(bx, 200, 1 + Math.random() * 2, 40);
+   249→    }
+   250→  }
+   251→  const tex = new THREE.CanvasTexture(canvas);
+   252→  tex.colorSpace = THREE.SRGBColorSpace;
+   253→  return tex;
+   254→}
+   255→
+   256→// Refrigerated glass door texture (frosty with handle)
+   257→function coolerDoorTexture(): THREE.CanvasTexture {
+   258→  const w = 128, h = 256;
+   259→  const canvas = document.createElement('canvas');
+   260→  canvas.width = w; canvas.height = h;
+   261→  const ctx = canvas.getContext('2d')!;
+   262→  // Frosted glass (light blue-white)
+   263→  const grad = ctx.createLinearGradient(0, 0, w, h);
+   264→  grad.addColorStop(0, '#c8dde8');
+   265→  grad.addColorStop(0.5, '#d8e8f0');
+   266→  grad.addColorStop(1, '#b8d0dc');
+   267→  ctx.fillStyle = grad;
+   268→  ctx.fillRect(0, 0, w, h);
+   269→  // Frost pattern (random white swirls)
+   270→  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+   271→  for (let i = 0; i < 60; i++) {
+   272→    const x = Math.random() * w;
+   273→    const y = Math.random() * h;
+   274→    const r = 3 + Math.random() * 8;
+   275→    ctx.beginPath();
+   276→    ctx.arc(x, y, r, 0, Math.PI * 2);
+   277→    ctx.fill();
+   278→  }
+   279→  // Frame (dark)
+   280→  ctx.strokeStyle = '#3a3a3e';
+   281→  ctx.lineWidth = 6;
+   282→  ctx.strokeRect(3, 3, w - 6, h - 6);
+   283→  // Handle (vertical bar on right)
+   284→  ctx.fillStyle = '#5a5a62';
+   285→  ctx.fillRect(w - 16, 20, 6, h - 40);
+   286→  // Product silhouette behind frost (faint colored shapes)
+   287→  ctx.fillStyle = 'rgba(200,100,50,0.15)';
+   288→  ctx.fillRect(15, 30, 30, 50);
+   289→  ctx.fillStyle = 'rgba(50,150,200,0.15)';
+   290→  ctx.fillRect(55, 30, 30, 50);
+   291→  ctx.fillStyle = 'rgba(200,180,50,0.15)';
+   292→  ctx.fillRect(15, 100, 30, 50);
+   293→  ctx.fillStyle = 'rgba(100,180,80,0.15)';
+   294→  ctx.fillRect(55, 100, 30, 50);
+   295→  const tex = new THREE.CanvasTexture(canvas);
+   296→  tex.colorSpace = THREE.SRGBColorSpace;
+   297→  return tex;
+   298→}
+   299→
+   300→// Fruit/vegetable texture — adds natural color variation, mottling, and
+   301→// a subtle highlight to make produce look realistic instead of flat-colored.
+   302→// baseColor = main color, highlightColor = lighter blush/highlight, spotColor = darker spots
+   303→function fruitTexture(baseColor: string, highlightColor: string, spotColor: string, spotDensity: number = 30): THREE.CanvasTexture {
+   304→  const size = 128;
+   305→  const canvas = document.createElement('canvas');
+   306→  canvas.width = size; canvas.height = size;
+   307→  const ctx = canvas.getContext('2d')!;
+   308→  // Base color
+   309→  ctx.fillStyle = baseColor;
+   310→  ctx.fillRect(0, 0, size, size);
+   311→  // Radial highlight (glossy spot — simulates light reflection on the fruit surface)
+   312→  const hgrad = ctx.createRadialGradient(size * 0.35, size * 0.3, 0, size * 0.35, size * 0.3, size * 0.5);
+   313→  hgrad.addColorStop(0, highlightColor);
+   314→  hgrad.addColorStop(0.5, baseColor);
+   315→  hgrad.addColorStop(1, baseColor);
+   316→  ctx.fillStyle = hgrad;
+   317→  ctx.fillRect(0, 0, size, size);
+   318→  // Natural mottling (random lighter/darker patches)
+   319→  ctx.globalAlpha = 0.15;
+   320→  for (let i = 0; i < 20; i++) {
+   321→    ctx.fillStyle = Math.random() > 0.5 ? highlightColor : spotColor;
+   322→    const x = Math.random() * size;
+   323→    const y = Math.random() * size;
+   324→    const r = 3 + Math.random() * 8;
+   325→    ctx.beginPath();
+   326→    ctx.arc(x, y, r, 0, Math.PI * 2);
+   327→    ctx.fill();
+   328→  }
+   329→  // Small spots/specks (pores, blemishes)
+   330→  ctx.globalAlpha = 0.3;
+   331→  ctx.fillStyle = spotColor;
+   332→  for (let i = 0; i < spotDensity; i++) {
+   333→    const x = Math.random() * size;
+   334→    const y = Math.random() * size;
+   335→    ctx.fillRect(x, y, 1 + Math.random(), 1 + Math.random());
+   336→  }
+   337→  ctx.globalAlpha = 1;
+   338→  const tex = new THREE.CanvasTexture(canvas);
+   339→  tex.colorSpace = THREE.SRGBColorSpace;
+   340→  return tex;
+   341→}
+   342→
+   343→// ====================== STORE ======================
+   344→
+   345→export function createGroceryStoreGeometry(): THREE.Group {
+   346→  const root = new THREE.Group();
+   347→
+   348→  // ===== SCALE: 10 units = 1 meter =====
+   349→  // Store footprint: 60m x 40m (600 x 400 units)
+   350→  // Ceiling height: 5m (50 units)
+   351→  const STORE_W = 600;   // X: -300 to +300
+   352→  const STORE_D = 400;   // Z: -200 to +200
+   353→  const STORE_H = 50;    // Y: 0 to 50
+   354→
+   355→  // ===== MATERIALS =====
+   356→  const floorTex = storeFloorTexture();
+   357→  floorTex.map.repeat.set(20, 14); floorTex.bumpMap.repeat.set(20, 14);
+   358→  const floorMat = new THREE.MeshStandardMaterial({
+   359→    map: floorTex.map, bumpMap: floorTex.bumpMap, bumpScale: 0.02,
+   360→    metalness: 0.0, roughness: 0.6,
+   361→  });
+   362→
+   363→  const produceFloorTex = produceFloorTexture();
+   364→  produceFloorTex.map.repeat.set(10, 8); produceFloorTex.bumpMap.repeat.set(10, 8);
+   365→  const produceFloorMat = new THREE.MeshStandardMaterial({
+   366→    map: produceFloorTex.map, bumpMap: produceFloorTex.bumpMap, bumpScale: 0.02,
+   367→    metalness: 0.0, roughness: 0.6,
+   368→  });
+   369→
+   370→  const wallTex = makeConcreteTexture('#f0ece4');
+   371→  wallTex.map.repeat.set(15, 4); wallTex.bumpMap.repeat.set(15, 4);
+   372→  const wallMat = new THREE.MeshStandardMaterial({
+   373→    map: wallTex.map, bumpMap: wallTex.bumpMap, bumpScale: 0.01, roughness: 0.85,
+   374→  });
+   375→
+   376→  const ceilTex = makeConcreteTexture('#f5f2ec');
+   377→  ceilTex.map.repeat.set(20, 14); ceilTex.bumpMap.repeat.set(20, 14);
+   378→  const ceilMat = new THREE.MeshStandardMaterial({
+   379→    map: ceilTex.map, bumpMap: ceilTex.bumpMap, bumpScale: 0.005, roughness: 0.9,
+   380→  });
+   381→
+   382→  // Shelving materials
+   383→  const shelfMat = new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.6, roughness: 0.4 });
+   384→  const shelfDarkMat = new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.5, roughness: 0.5 });
+   385→  const pegboardMat = new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.3, roughness: 0.6 });
+   386→
+   387→  // Checkout materials
+   388→  const checkoutMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.4, roughness: 0.5 });
+   389→  const conveyorMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.1, roughness: 0.8 });
+   390→  const registerMat = new THREE.MeshStandardMaterial({ color: 0xe8e8ec, metalness: 0.3, roughness: 0.4 });
+   391→
+   392→  // Produce materials — each with a procedural fruit texture for natural variation
+   393→  const produceBinMat = new THREE.MeshStandardMaterial({ color: 0x4a6a3a, metalness: 0.1, roughness: 0.7 }); // green bin
+   394→  const appleTex = fruitTexture('#c02020', '#ff6060', '#801010', 25);
+   395→  const appleMat = new THREE.MeshStandardMaterial({ map: appleTex, color: 0xffffff, metalness: 0.1, roughness: 0.35 });
+   396→  const orangeTex = fruitTexture('#ff8c20', '#ffb060', '#cc6010', 40);
+   397→  const orangeMat = new THREE.MeshStandardMaterial({ map: orangeTex, color: 0xffffff, metalness: 0.1, roughness: 0.6 });
+   398→  const bananaTex = fruitTexture('#f4d020', '#fff060', '#c0a010', 20);
+   399→  const bananaMat = new THREE.MeshStandardMaterial({ map: bananaTex, color: 0xffffff, metalness: 0.0, roughness: 0.6 });
+   400→  const lettuceTex = fruitTexture('#5a8a3a', '#8aba5a', '#3a6a2a', 35);
+   401→  const lettuceMat = new THREE.MeshStandardMaterial({ map: lettuceTex, color: 0xffffff, metalness: 0.0, roughness: 0.7 });
+   402→  const tomatoTex = fruitTexture('#d03030', '#ff6060', '#902020', 25);
+   403→  const tomatoMat = new THREE.MeshStandardMaterial({ map: tomatoTex, color: 0xffffff, metalness: 0.1, roughness: 0.35 });
+   404→  const grapeTex = fruitTexture('#6a3a8a', '#9a6aba', '#4a2a6a', 30);
+   405→  const grapeMat = new THREE.MeshStandardMaterial({ map: grapeTex, color: 0xffffff, metalness: 0.1, roughness: 0.4 });
+   406→  const lemonTex = fruitTexture('#f4f020', '#ffff80', '#c0bc10', 35);
+   407→  const lemonMat = new THREE.MeshStandardMaterial({ map: lemonTex, color: 0xffffff, metalness: 0.1, roughness: 0.4 });
+   408→  const pepperRedTex = fruitTexture('#c02020', '#ff5050', '#801010', 20);
+   409→  const pepperRedMat = new THREE.MeshStandardMaterial({ map: pepperRedTex, color: 0xffffff, metalness: 0.1, roughness: 0.35 });
+   410→  const pepperGreenTex = fruitTexture('#4a8a3a', '#7aba5a', '#2a6a1a', 20);
+   411→  const pepperGreenMat = new THREE.MeshStandardMaterial({ map: pepperGreenTex, color: 0xffffff, metalness: 0.1, roughness: 0.35 });
+   412→  const potatoTex = fruitTexture('#8a6a4a', '#aa8a6a', '#5a4a2a', 50);
+   413→  const potatoMat = new THREE.MeshStandardMaterial({ map: potatoTex, color: 0xffffff, metalness: 0.0, roughness: 0.85 });
+   414→
+   415→  // Refrigeration
+   416→  const coolerFrameMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.5, roughness: 0.4 });
+   417→  const glassMat = new THREE.MeshStandardMaterial({
+   418→    color: 0xc8dde8, metalness: 0.3, roughness: 0.1,
+   419→    transparent: true, opacity: 0.5,
+   420→  });
+   421→
+   422→  // Misc
+   423→  const blackMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.3, roughness: 0.6 });
+   424→  const signMat = new THREE.MeshStandardMaterial({ color: 0xc8202a, metalness: 0.2, roughness: 0.5 });
+   425→  const cartMat = new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.7, roughness: 0.3 });
+   426→  const basketMat = new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.5, roughness: 0.4 });
+   427→  const breadMat = new THREE.MeshStandardMaterial({ color: 0xc8a060, metalness: 0.0, roughness: 0.7 });
+   428→
+   429→  // ============================================================
+   430→  // FLOOR (main store area — tiled)
+   431→  // ============================================================
+   432→  const floor = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(STORE_W, STORE_D), floorMat));
+   433→  floor.rotation.x = -Math.PI / 2;
+   434→  floor.position.set(0, 0, 0);
+   435→  floor.receiveShadow = true;
+   436→  root.add(floor);
+   437→
+   438→  // Produce section floor (warmer tile) — front-left quadrant
+   439→  const produceFloor = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(160, 120), produceFloorMat));
+   440→  produceFloor.rotation.x = -Math.PI / 2;
+   441→  produceFloor.position.set(-200, 0.05, 130); // front-left area
+   442→  produceFloor.receiveShadow = true;
+   443→  root.add(produceFloor);
+   444→
+   445→  // Bakery floor (wood-look) — front-right
+   446→  const bakeryFloorTex = makeWoodTexture('#c8a878', '#8a6a44');
+   447→  bakeryFloorTex.map.repeat.set(8, 6); bakeryFloorTex.bumpMap.repeat.set(8, 6);
+   448→  const bakeryFloorMat = new THREE.MeshStandardMaterial({
+   449→    map: bakeryFloorTex.map, bumpMap: bakeryFloorTex.bumpMap, bumpScale: 0.02, roughness: 0.6,
+   450→  });
+   451→  const bakeryFloor = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(120, 100), bakeryFloorMat));
+   452→  bakeryFloor.rotation.x = -Math.PI / 2;
+   453→  bakeryFloor.position.set(220, 0.05, 140);
+   454→  bakeryFloor.receiveShadow = true;
+   455→  root.add(bakeryFloor);
+   456→
+   457→  // ============================================================
+   458→  // CEILING
+   459→  // ============================================================
+   460→  const ceiling = addShadow(new THREE.Mesh(new THREE.PlaneGeometry(STORE_W, STORE_D), ceilMat));
+   461→  ceiling.rotation.x = Math.PI / 2;
+   462→  ceiling.position.set(0, STORE_H, 0);
+   463→  ceiling.receiveShadow = true;
+   464→  root.add(ceiling);
+   465→
+   466→  // ============================================================
+   467→  // WALLS (4 exterior walls)
+   468→  // ============================================================
+   469→  // South wall (entrance, Z=-200) — has entrance opening
+   470→  // Opening: X=-40..40 (80 wide for entrance doors)
+   471→  wall(-260, -STORE_D / 2 - 0.5, 220, STORE_H, 1, wallMat);  // left of entrance
+   472→  wall(60, -STORE_D / 2 - 0.5, 480, STORE_H, 1, wallMat);    // right of entrance
+   473→  // Header above entrance
+   474→  wall(0, -STORE_D / 2 - 0.5, 80, 20, 1, wallMat, 0, 40);    // above doors, y center=40
+   475→  // North wall (back, Z=200) — solid
+   476→  wall(0, STORE_D / 2 + 0.5, STORE_W, STORE_H, 1, wallMat);
+   477→  // East wall (X=300)
+   478→  wall(STORE_W / 2 + 0.5, 0, 1, STORE_H, STORE_D, wallMat);
+   479→  // West wall (X=-300)
+   480→  wall(-STORE_W / 2 - 0.5, 0, 1, STORE_H, STORE_D, wallMat);
+   481→
+   482→  // ============================================================
+   483→  // ENTRANCE (sliding glass doors + vestibule)
+   484→  // Z=-200 (south wall), opening X=-40..40
+   485→  // ============================================================
+   486→  // Left sliding door
+   487→  const door1 = addShadow(new THREE.Mesh(
+   488→    new THREE.BoxGeometry(38, 35, 0.5),
+   489→    new THREE.MeshStandardMaterial({ color: 0x88aacc, metalness: 0.7, roughness: 0.05, transparent: true, opacity: 0.4 })
+   490→  ));
+   491→  door1.position.set(-20, 17.5, -200);
+   492→  root.add(door1);
+   493→  // Right sliding door
+   494→  const door2 = addShadow(new THREE.Mesh(
+   495→    new THREE.BoxGeometry(38, 35, 0.5),
+   496→    new THREE.MeshStandardMaterial({ color: 0x88aacc, metalness: 0.7, roughness: 0.05, transparent: true, opacity: 0.4 })
+   497→  ));
+   498→  door2.position.set(20, 17.5, -200);
+   499→  root.add(door2);
+   500→  // Door frame
+   501→  const doorFrame = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.6, roughness: 0.3 });
+   502→  const frameTop = addShadow(new THREE.Mesh(new THREE.BoxGeometry(82, 2, 1), doorFrame));
+   503→  frameTop.position.set(0, 35, -200);
+   504→  root.add(frameTop);
+   505→  // "ENTRANCE" sign above doors
+   506→  const entranceSignTex = categoryBannerTexture('ENTRANCE', '#2a6a4a');
+   507→  const entranceSign = addShadow(new THREE.Mesh(
+   508→    new THREE.PlaneGeometry(60, 12),
+   509→    new THREE.MeshStandardMaterial({ map: entranceSignTex, emissive: 0xffffff, emissiveMap: entranceSignTex, emissiveIntensity: 0.3 })
+   510→  ));
+   511→  entranceSign.position.set(0, 44, -199);
+   512→  root.add(entranceSign);
+   513→
+   514→  // Shopping cart corral (just inside entrance)
+   515→  for (let i = 0; i < 6; i++) {
+   516→    const cx = 100 + (i % 3) * 8;
+   517→    const cz = -180 + Math.floor(i / 3) * 12;
+   518→    addShoppingCart(root, cx, cz, cartMat, blackMat);
+   519→  }
+   520→
+   521→  // ============================================================
+   522→  // GROCERY AISLES (8 aisles in center of store)
+   523→  // Each aisle: 2 shelving units back-to-back, 120 long, 18 wide, 20 tall
+   524→  // Aisle runs along X axis. Spacing: 30 units between aisles (3m).
+   525→  // Aisles positioned in Z range [-50, 160], X range [-140, 140]
+   526→  // ============================================================
+   527→  const aisleDefs = [
+   528→    { num: 1, category: 'Canned Goods', z: -50 },
+   529→    { num: 2, category: 'Pasta & Rice', z: -20 },
+   530→    { num: 3, category: 'Baking', z: 10 },
+   531→    { num: 4, category: 'Snacks', z: 40 },
+   532→    { num: 5, category: 'Beverages', z: 70 },
+   533→    { num: 6, category: 'Cereal', z: 100 },
+   534→    { num: 7, category: 'Condiments', z: 130 },
+   535→    { num: 8, category: 'International', z: 160 },
+   536→  ];
+   537→
+   538→  // Product color palettes per aisle
+   539→  const aisleColors = [
+   540→    ['#c82020', '#f4a020', '#2a6a4a', '#2050a0'], // canned
+   541→    ['#f4d020', '#c84020', '#4a8a3a', '#a040c0'], // pasta
+   542→    ['#f4f0e8', '#c8a060', '#d04060', '#4a6ab0'], // baking
+   543→    ['#f4a020', '#c02020', '#f4f020', '#2a8a4a'], // snacks
+   544→    ['#c02020', '#2a6ab0', '#f4a020', '#4a8a3a'], // beverages
+   545→    ['#a040c0', '#f4a020', '#2a6ab0', '#c02020'], // cereal
+   546→    ['#c82020', '#f4d020', '#2a6a4a', '#a050a0'], // condiments
+   547→    ['#2a6a4a', '#c84020', '#f4d020', '#4a6ab0'], // international
+   548→  ];
+   549→
+   550→  for (let i = 0; i < aisleDefs.length; i++) {
+   551→    const a = aisleDefs[i];
+   552→    const colors = aisleColors[i];
+   553→    buildAisle(root, a.num, a.category, a.z, colors, shelfMat, shelfDarkMat);
+   554→  }
+   555→
+   556→  // ============================================================
+   557→  // PRODUCE SECTION (front-left, X[-280,-120], Z[70,190])
+   558→  // Display bins, fruit pyramids, misted greens, price signs
+   559→  // ============================================================
+   560→  buildProduceSection(root, produceBinMat, appleMat, orangeMat, bananaMat, lettuceMat, tomatoMat, grapeMat, lemonMat, pepperRedMat, pepperGreenMat, potatoMat, signMat);
+   561→
+   562→  // ============================================================
+   563→  // BAKERY (front-right, X[160,280], Z[90,190])
+   564→  // Display case, bread shelves, pastry case, cake display
+   565→  // ============================================================
+   566→  buildBakery(root, breadMat, shelfMat, signMat);
+   567→
+   568→  // ============================================================
+   569→  // DELI COUNTER (back-left, X[-280,-180], Z[170,195])
+   570→  // Glass display case, slicer, prepared foods
+   571→  // ============================================================
+   572→  buildDeli(root, glassMat, coolerFrameMat, signMat, shelfMat);
+   573→
+   574→  // ============================================================
+   575→  // DAIRY WALL (back wall, Z=195-200, full width)
+   576→  // Glass-door refrigerated coolers along the north wall
+   577→  // ============================================================
+   578→  buildDairyWall(root, coolerFrameMat);
+   579→
+   580→  // ============================================================
+   581→  // FROZEN FOOD (back-right, X[120,260], Z[140,190])
+   582→  // Chest freezers + vertical freezer cases
+   583→  // ============================================================
+   584→  buildFrozenSection(root, coolerFrameMat, glassMat);
+   585→
+   586→  // ============================================================
+   587→  // CHECKOUT LANES (6 lanes, front center, Z=-140 to -90)
+   588→  // Each lane: register, conveyor belt, bagging area, divider
+   589→  // ============================================================
+   590→  const checkoutY = -120;
+   591→  for (let i = 0; i < 6; i++) {
+   592→    const cx = -150 + i * 60;
+   593→    buildCheckoutLane(root, cx, checkoutY, i + 1, checkoutMat, conveyorMat, registerMat, blackMat);
+   594→  }
+   595→
+   596→  // Checkout lane signs ("LANE 1" etc.) hanging from ceiling
+   597→  for (let i = 0; i < 6; i++) {
+   598→    const cx = -150 + i * 60;
+   599→    const laneSignTex = categoryBannerTexture(`LANE ${i + 1}`, i === 0 ? '#2a8a4a' : '#2a6ab0');
+   600→    const laneSign = addShadow(new THREE.Mesh(
+   601→      new THREE.PlaneGeometry(40, 10),
+   602→      new THREE.MeshStandardMaterial({ map: laneSignTex, emissive: 0xffffff, emissiveMap: laneSignTex, emissiveIntensity: 0.3, side: THREE.DoubleSide })
+   603→    ));
+   604→    laneSign.position.set(cx, 42, -100);
+   605→    laneSign.rotation.x = Math.PI / 2; // face down
+   606→    root.add(laneSign);
+   607→    // Hanging chains
+   608→    for (const [hx, hz] of [[cx - 18, -100], [cx + 18, -100]] as [number, number][]) {
+   609→      const chain = addShadow(new THREE.Mesh(
+   610→        new THREE.CylinderGeometry(0.2, 0.2, 6, 6),
+   611→        blackMat
+   612→      ));
+   613→      chain.position.set(hx, 45, hz);
+   614→      root.add(chain);
+   615→    }
+   616→  }
+   617→
+   618→  // ============================================================
+   619→  // CUSTOMER SERVICE DESK (front-right corner)
+   620→  // ============================================================
+   621→  buildCustomerService(root, shelfMat, signMat, blackMat);
+   622→
+   623→  // ============================================================
+   624→  // OVERHEAD LIGHTING (fluorescent tube fixtures, grid pattern)
+   625→  // ============================================================
+   626→  const lightFixtureMat = new THREE.MeshStandardMaterial({
+   627→    color: 0xffffff, emissive: 0xfff4e0, emissiveIntensity: 0.7, metalness: 0.3, roughness: 0.4
+   628→  });
+   629→  // Grid of 8x6 light fixtures across the ceiling
+   630→  for (let lx = -250; lx <= 250; lx += 70) {
+   631→    for (let lz = -180; lz <= 180; lz += 60) {
+   632→      const fixture = addShadow(new THREE.Mesh(
+   633→        new THREE.BoxGeometry(50, 1, 8),
+   634→        lightFixtureMat
+   635→      ));
+   636→      fixture.position.set(lx, 49, lz);
+   637→      root.add(fixture);
+   638→
+   639→      // Actual point light (lower intensity, only every other fixture for performance)
+   640→      if ((Math.abs(lx) + Math.abs(lz)) % 140 === 0) {
+   641→        const ptLight = new THREE.PointLight(0xfff4e0, 0.35, 80, 1.5);
+   642→        ptLight.position.set(lx, 47, lz);
+   643→        root.add(ptLight);
+   644→      }
+   645→    }
+   646→  }
+   647→
+   648→  // ============================================================
+   649→  // AMBIENT + DIRECTIONAL LIGHTING
+   650→  // ============================================================
+   651→  // Bright overhead "store lights" — flat directional from above
+   652→  const storeLight = new THREE.DirectionalLight(0xfff8e8, 1.0);
+   653→  storeLight.position.set(0, 100, 0);
+   654→  storeLight.castShadow = true;
+   655→  storeLight.shadow.mapSize.width = 2048;
+   656→  storeLight.shadow.mapSize.height = 2048;
+   657→  storeLight.shadow.camera.left = -320;
+   658→  storeLight.shadow.camera.right = 320;
+   659→  storeLight.shadow.camera.top = 220;
+   660→  storeLight.shadow.camera.bottom = -220;
+   661→  storeLight.shadow.camera.near = 1;
+   662→  storeLight.shadow.camera.far = 200;
+   663→  storeLight.shadow.bias = -0.0005;
+   664→  root.add(storeLight);
+   665→
+   666→  // Fill light from entrance direction
+   667→  const fillLight = new THREE.DirectionalLight(0xaaccff, 0.3);
+   668→  fillLight.position.set(0, 40, -200);
+   669→  root.add(fillLight);
+   670→
+   671→  // Hemisphere + ambient
+   672→  const hemi = new THREE.HemisphereLight(0xfff8e8, 0xa09080, 0.5);
+   673→  root.add(hemi);
+   674→  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+   675→  root.add(ambient);
+   676→
+   677→  // ============================================================
+   678→  // BACK ROOM / STORAGE (behind north wall — represented as a dark wall section)
+   679→  // ============================================================
+   680→  // "EMPLOYEES ONLY" door on back wall
+   681→  const backDoor = addShadow(new THREE.Mesh(
+   682→    new THREE.BoxGeometry(12, 25, 1),
+   683→    new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.4, roughness: 0.5 })
+   684→  ));
+   685→  backDoor.position.set(-200, 12.5, 199.5);
+   686→  root.add(backDoor);
+   687→  // Sign above
+   688→  const empSignTex = categoryBannerTexture('EMPLOYEES ONLY', '#3a3a40');
+   689→  const empSign = addShadow(new THREE.Mesh(
+   690→    new THREE.PlaneGeometry(30, 8),
+   691→    new THREE.MeshStandardMaterial({ map: empSignTex, emissive: 0xffffff, emissiveMap: empSignTex, emissiveIntensity: 0.2 })
+   692→  ));
+   693→  empSign.position.set(-200, 32, 199);
+   694→  root.add(empSign);
+   695→
+   696→  // ============================================================
+   697→  // HANGING CATEGORY BANNERS (over section entrances)
+   698→  // ============================================================
+   699→  const banners = [
+   700→    { text: 'PRODUCE', color: '#2a8a4a', x: -200, z: 70 },
+   701→    { text: 'BAKERY', color: '#c88030', x: 220, z: 90 },
+   702→    { text: 'DELI', color: '#a04020', x: -230, z: 165 },
+   703→    { text: 'DAIRY', color: '#2a6ab0', x: 0, z: 165 },
+   704→    { text: 'FROZEN', color: '#4a8ac8', x: 190, z: 135 },
+   705→  ];
+   706→  for (const b of banners) {
+   707→    const bTex = categoryBannerTexture(b.text, b.color);
+   708→    const banner = addShadow(new THREE.Mesh(
+   709→      new THREE.PlaneGeometry(80, 14),
+   710→      new THREE.MeshStandardMaterial({ map: bTex, emissive: 0xffffff, emissiveMap: bTex, emissiveIntensity: 0.25, side: THREE.DoubleSide })
+   711→    ));
+   712→    banner.position.set(b.x, 42, b.z);
+   713→    banner.rotation.x = Math.PI / 2; // hang flat, face down
+   714→    root.add(banner);
+   715→    // Hanging chains (4 corners)
+   716→    for (const [hx, hz] of [[b.x - 38, b.z], [b.x + 38, b.z]] as [number, number][]) {
+   717→      const chain = addShadow(new THREE.Mesh(
+   718→        new THREE.CylinderGeometry(0.2, 0.2, 6, 6),
+   719→        blackMat
+   720→      ));
+   721→      chain.position.set(hx, 45, hz);
+   722→      root.add(chain);
+   723→    }
+   724→  }
+   725→
+   726→  return root;
+   727→
+   728→  // ===== HELPER FUNCTIONS =====
+   729→
+   730→  function wall(x: number, z: number, w: number, h: number, d: number, mat: THREE.Material, _y?: number, yCenter?: number) {
+   731→    const m = addShadow(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat));
+   732→    m.position.set(x, yCenter !== undefined ? yCenter : h / 2, z);
+   733→    root.add(m);
+   734→    return m;
+   735→  }
+   736→}
+   737→
+   738→// ---------- Component builder helpers ----------
+   739→
+   740→function addShoppingCart(root: THREE.Group, x: number, z: number, cartMat: THREE.Material, blackMat: THREE.Material) {
+   741→  const cartGroup = new THREE.Group();
+   742→  cartGroup.position.set(x, 0, z);
+   743→  // Cart basket (wire frame look — simplified as box with dark material)
+   744→  const basket = addShadow(new THREE.Mesh(
+   745→    new THREE.BoxGeometry(14, 12, 18),
+   746→    new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.7, roughness: 0.3, transparent: true, opacity: 0.6 })
+   747→  ));
+   748→  basket.position.set(0, 10, 0);
+   749→  cartGroup.add(basket);
+   750→  // Cart handle
+   751→  const handle = addShadow(new THREE.Mesh(
+   752→    new THREE.CylinderGeometry(0.4, 0.4, 14, 8),
+   753→    cartMat
+   754→  ));
+   755→  handle.rotation.x = Math.PI / 2;
+   756→  handle.position.set(0, 18, -10);
+   757→  cartGroup.add(handle);
+   758→  // Handle vertical posts
+   759→  for (const hx of [-5, 5]) {
+   760→    const post = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 8, 6), cartMat));
+   761→    post.position.set(hx, 14, -10);
+   762→    cartGroup.add(post);
+   763→  }
+   764→  // Wheels (4)
+   765→  for (const [wx, wz] of [[-6, -8], [6, -8], [-6, 8], [6, 8]] as [number, number][]) {
+   766→    const wheel = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1, 8), blackMat));
+   767→    wheel.rotation.x = Math.PI / 2;
+   768→    wheel.position.set(wx, 1.5, wz);
+   769→    cartGroup.add(wheel);
+   770→  }
+   771→  root.add(cartGroup);
+   772→}
+   773→
+   774→function buildAisle(
+   775→  root: THREE.Group, num: number, category: string, z: number,
+   776→  colors: string[], shelfMat: THREE.Material, shelfDarkMat: THREE.Material
+   777→) {
+   778→  const AISLE_LEN = 240;   // 24m long aisle
+   779→  const AISLE_W = 18;      // 1.8m wide (two 0.9m shelving units back-to-back)
+   780→  const AISLE_H = 22;      // 2.2m tall shelving
+   781→  const SHELF_COUNT = 5;   // 5 shelves per side
+   782→  const aisleX = 0;
+   783→
+   784→  // Aisle number sign (hanging from ceiling at the end of the aisle)
+   785→  const signTex = aisleSignTexture(num, category);
+   786→  const aisleSign = addShadow(new THREE.Mesh(
+   787→    new THREE.PlaneGeometry(20, 7),
+   788→    new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.3, side: THREE.DoubleSide })
+   789→  ));
+   790→  aisleSign.position.set(aisleX - AISLE_LEN / 2 - 5, 35, z);
+   791→  aisleSign.rotation.y = Math.PI / 2;
+   792→  root.add(aisleSign);
+   793→
+   794→  // Two shelving units (back-to-back gondola): one facing the -Z walkway, one facing the +Z walkway.
+   795→  // The gondola center is at Z=z. The back panel of each unit is at the CENTER (where they meet).
+   796→  // Products face OUTWARD toward the walkways on either side of the gondola.
+   797→  //
+   798→  // Geometry for side=-1 (lower-Z half, faces the -Z walkway):
+   799→  //   shelfZ = z - AISLE_W/4 (shelf center)
+   800→  //   Back panel at shelfZ + 4 (toward gondola center at z)
+   801→  //   Walkway-facing front edge at shelfZ - 4 (toward the -Z walkway)
+   802→  //   Products near front, labels face -Z (toward walkway)
+   803→  //
+   804→  // Geometry for side=+1 (upper-Z half, faces the +Z walkway):
+   805→  //   shelfZ = z + AISLE_W/4 (shelf center)
+   806→  //   Back panel at shelfZ - 4 (toward gondola center at z)
+   807→  //   Walkway-facing front edge at shelfZ + 4 (toward the +Z walkway)
+   808→  //   Products near front, labels face +Z (toward walkway)
+   809→  for (const side of [-1, 1]) {
+   810→    const shelfZ = z + side * (AISLE_W / 4);
+   811→    // Shelving back panel — at the GONDOLA CENTER (where the two units meet)
+   812→    const backPanel = addShadow(new THREE.Mesh(
+   813→      new THREE.BoxGeometry(AISLE_LEN, AISLE_H, 0.5),
+   814→      shelfDarkMat
+   815→    ));
+   816→    backPanel.position.set(aisleX, AISLE_H / 2, shelfZ - side * 4);
+   817→    root.add(backPanel);
+   818→
+   819→    // Shelves (horizontal planks, 8 deep)
+   820→    for (let s = 0; s < SHELF_COUNT; s++) {
+   821→      const shelfY = 2 + s * 4.5; // shelves at y=2, 6.5, 11, 15.5, 20
+   822→      const shelf = addShadow(new THREE.Mesh(
+   823→        new THREE.BoxGeometry(AISLE_LEN, 0.5, 8),
+   824→        shelfMat
+   825→      ));
+   826→      shelf.position.set(aisleX, shelfY, shelfZ);
+   827→      root.add(shelf);
+   828→
+   829→      // Products on this shelf — organized into "facings" (contiguous blocks of
+   830→      // the same product type and color, like real grocery shelves). Each facing
+   831→      // is 3-5 identical products side by side. The facing layout varies per shelf
+   832→      // so different shelves have different arrangements.
+   833→      const productW = AISLE_LEN / 20; // base unit width (20 products worth of space)
+   834→
+   835→      // Facing layouts — each entry: { type, count }. The layout cycles per shelf
+   836→      // so shelf 0 has one arrangement, shelf 1 another, etc.
+   837→      // Types: 'box', 'bag', 'bottle', 'can', 'jar', 'pouch'
+   838→      const facingLayouts = [
+   839→        [{ type: 'box', count: 4 }, { type: 'can', count: 3 }, { type: 'bottle', count: 4 }, { type: 'box', count: 3 }, { type: 'jar', count: 3 }, { type: 'pouch', count: 3 }],
+   840→        [{ type: 'box', count: 5 }, { type: 'bottle', count: 3 }, { type: 'can', count: 4 }, { type: 'bag', count: 3 }, { type: 'box', count: 5 }],
+   841→        [{ type: 'can', count: 4 }, { type: 'box', count: 4 }, { type: 'jar', count: 3 }, { type: 'bottle', count: 3 }, { type: 'pouch', count: 3 }, { type: 'box', count: 3 }],
+   842→        [{ type: 'bottle', count: 4 }, { type: 'box', count: 4 }, { type: 'bag', count: 3 }, { type: 'can', count: 3 }, { type: 'box', count: 3 }, { type: 'jar', count: 3 }],
+   843→        [{ type: 'box', count: 3 }, { type: 'jar', count: 3 }, { type: 'box', count: 4 }, { type: 'bottle', count: 4 }, { type: 'pouch', count: 3 }, { type: 'can', count: 3 }],
+   844→      ];
+   845→      const facings = facingLayouts[s % facingLayouts.length];
+   846→
+   847→      // Walk along the shelf, placing each facing as a contiguous block
+   848→      let posIdx = 0; // current position index along the shelf (0-19)
+   849→      for (let f = 0; f < facings.length; f++) {
+   850→        const facing = facings[f];
+   851→        const facingColorIdx = (s * 2 + f) % colors.length;
+   852→        const prodColor = colors[facingColorIdx];
+   853→        const accentColor = colors[(facingColorIdx + 1) % colors.length];
+   854→        const prodName = `${category.substring(0, 3).toUpperCase()}${f + 1}`;
+   855→        const prodTex = productBoxTexture(prodName, prodColor, accentColor);
+   856→
+   857→        // Place all products in this facing (same type, same color, same texture)
+   858→        for (let p = 0; p < facing.count; p++) {
+   859→          const px = aisleX - AISLE_LEN / 2 + posIdx * productW + productW / 2;
+   860→          posIdx++;
+   861→
+   862→          let productMesh: THREE.Mesh;
+   863→          let productH: number;
+   864→
+   865→          if (facing.type === 'bag') {
+   866→            productH = 4;
+   867→            const bagW = productW - 2;
+   868→            productMesh = addShadow(new THREE.Mesh(
+   869→              new THREE.CylinderGeometry(bagW / 2, bagW / 2, productH, 8),
+   870→              new THREE.MeshStandardMaterial({ map: prodTex, metalness: 0.3, roughness: 0.4 })
+   871→            ));
+   872→            productMesh.rotation.x = Math.PI / 2;
+   873→            productMesh.rotation.z = Math.PI / 2;
+   874→            productMesh.scale.set(1, 0.7, 1);
+   875→          } else if (facing.type === 'bottle') {
+   876→            productH = 5;
+   877→            const bottleBody = new THREE.Group();
+   878→            const bodyMesh = addShadow(new THREE.Mesh(
+   879→              new THREE.CylinderGeometry(1.2, 1.2, 3.5, 12),
+   880→              new THREE.MeshStandardMaterial({ map: prodTex, metalness: 0.2, roughness: 0.3, transparent: true, opacity: 0.85 })
+   881→            ));
+   882→            bottleBody.add(bodyMesh);
+   883→            const shoulder = addShadow(new THREE.Mesh(
+   884→              new THREE.CylinderGeometry(0.5, 1.2, 1, 8),
+   885→              new THREE.MeshStandardMaterial({ map: prodTex, metalness: 0.2, roughness: 0.3 })
+   886→            ));
+   887→            shoulder.position.y = 2.25;
+   888→            bottleBody.add(shoulder);
+   889→            const neck = addShadow(new THREE.Mesh(
+   890→              new THREE.CylinderGeometry(0.5, 0.5, 0.8, 8),
+   891→              new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.3, roughness: 0.4 })
+   892→            ));
+   893→            neck.position.y = 3.15;
+   894→            bottleBody.add(neck);
+   895→            const cap = addShadow(new THREE.Mesh(
+   896→              new THREE.CylinderGeometry(0.55, 0.55, 0.4, 8),
+   897→              new THREE.MeshStandardMaterial({ color: 0xc02020, metalness: 0.4, roughness: 0.3 })
+   898→            ));
+   899→            cap.position.y = 3.75;
+   900→            bottleBody.add(cap);
+   901→            bottleBody.rotation.y = side > 0 ? 0 : Math.PI;
+   902→            productMesh = bottleBody as unknown as THREE.Mesh;
+   903→          } else if (facing.type === 'can') {
+   904→            productH = 3.5;
+   905→            productMesh = addShadow(new THREE.Mesh(
+   906→              new THREE.CylinderGeometry(0.9, 0.9, productH, 12),
+   907→              new THREE.MeshStandardMaterial({ map: prodTex, metalness: 0.6, roughness: 0.3 })
+   908→            ));
+   909→            productMesh.rotation.z = Math.PI / 2;
+   910→            productMesh.rotation.y = side > 0 ? 0 : Math.PI;
+   911→          } else if (facing.type === 'jar') {
+   912→            productH = 3;
+   913→            const jarGroup = new THREE.Group();
+   914→            const jarBody = addShadow(new THREE.Mesh(
+   915→              new THREE.CylinderGeometry(1.3, 1.3, 2.2, 12),
+   916→              new THREE.MeshStandardMaterial({ map: prodTex, metalness: 0.1, roughness: 0.1, transparent: true, opacity: 0.7 })
+   917→            ));
+   918→            jarBody.position.y = 0;
+   919→            jarGroup.add(jarBody);
+   920→            const lid = addShadow(new THREE.Mesh(
+   921→              new THREE.CylinderGeometry(1.3, 1.3, 0.6, 12),
+   922→              new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.7, roughness: 0.3 })
+   923→            ));
+   924→            lid.position.y = 1.4;
+   925→            jarGroup.add(lid);
+   926→            jarGroup.rotation.y = side > 0 ? 0 : Math.PI;
+   927→            productMesh = jarGroup as unknown as THREE.Mesh;
+   928→          } else if (facing.type === 'pouch') {
+   929→            productH = 4;
+   930→            const pouchW = productW - 2.5;
+   931→            productMesh = addShadow(new THREE.Mesh(
+   932→              new THREE.BoxGeometry(pouchW, productH, 1.5),
+   933→              new THREE.MeshStandardMaterial({ map: prodTex, metalness: 0.2, roughness: 0.5 })
+   934→            ));
+   935→            productMesh.scale.set(0.9, 1, 1);
+   936→            productMesh.rotation.y = side > 0 ? 0 : Math.PI;
+   937→          } else {
+   938→            // Box (default)
+   939→            productH = 3 + (f % 3);
+   940→            const boxW = productW - 1.5;
+   941→            productMesh = addShadow(new THREE.Mesh(
+   942→              new THREE.BoxGeometry(boxW, productH, 4),
+   943→              new THREE.MeshStandardMaterial({ map: prodTex, metalness: 0.1, roughness: 0.5 })
+   944→            ));
+   945→            productMesh.rotation.y = side > 0 ? 0 : Math.PI;
+   946→          }
+   947→
+   948→          productMesh.position.set(px, shelfY + 0.25 + productH / 2, shelfZ + side * 1.5);
+   949→          root.add(productMesh);
+   950→        }
+   951→
+   952→        // Price tag at the start of each facing (at the leftmost product of the block)
+   953→        if (s < SHELF_COUNT - 1) {
+   954→          const tagX = aisleX - AISLE_LEN / 2 + (posIdx - facing.count) * productW + productW / 2;
+   955→          const tagTex = priceTagTexture(
+   956→            `${category.substring(0, 4)}${f + 1}`,
+   957→            `$${(1.99 + f * 0.5).toFixed(2)}`
+   958→          );
+   959→          const tag = addShadow(new THREE.Mesh(
+   960→            new THREE.PlaneGeometry(6, 1.5),
+   961→            new THREE.MeshStandardMaterial({ map: tagTex, emissive: 0xffffff, emissiveMap: tagTex, emissiveIntensity: 0.2 })
+   962→          ));
+   963→          tag.position.set(tagX, shelfY + 0.5, shelfZ + side * 3.8);
+   964→          tag.rotation.y = side > 0 ? 0 : Math.PI;
+   965→          root.add(tag);
+   966→        }
+   967→      }
+   968→      // (Price tags are now placed per-facing above)
+   969→    }
+   970→
+   971→    // Endcap (promotional display at the end of the aisle)
+   972→    const endcapX = aisleX + AISLE_LEN / 2 + 4;
+   973→    const endcap = addShadow(new THREE.Mesh(
+   974→      new THREE.BoxGeometry(8, 16, AISLE_W),
+   975→      shelfMat
+   976→    ));
+   977→    endcap.position.set(endcapX, 8, z);
+   978→    root.add(endcap);
+   979→    // Endcap products (stacked boxes)
+   980→    for (let e = 0; e < 4; e++) {
+   981→      const eColor = colors[e % colors.length];
+   982→      const eAccent = colors[(e + 1) % colors.length];
+   983→      const eTex = productBoxTexture(`SALE${e + 1}`, eColor, eAccent);
+   984→      const eMat = new THREE.MeshStandardMaterial({ map: eTex, metalness: 0.1, roughness: 0.5 });
+   985→      for (let r = 0; r < 3; r++) {
+   986→        const ebox = addShadow(new THREE.Mesh(new THREE.BoxGeometry(6, 3, 6), eMat));
+   987→        ebox.position.set(endcapX, 2 + r * 3.5, z - 6 + r * 2);
+   988→        root.add(ebox);
+   989→      }
+   990→    }
+   991→  }
+   992→}
+   993→
+   994→function buildProduceSection(
+   995→  root: THREE.Group, binMat: THREE.Material,
+   996→  appleMat: THREE.Material, orangeMat: THREE.Material, bananaMat: THREE.Material,
+   997→  lettuceMat: THREE.Material, tomatoMat: THREE.Material, grapeMat: THREE.Material,
+   998→  lemonMat: THREE.Material, pepperRedMat: THREE.Material, pepperGreenMat: THREE.Material,
+   999→  potatoMat: THREE.Material, signMat: THREE.Material
+  1000→) {
+  1001→  // Produce display bins (angled display cases) along X=-200, Z=80-180
+  1002→  // 6 bins in a row
+  1003→  const binX = -200;
+  1004→  const binStartZ = 80;
+  1005→  const binSpacing = 18;
+  1006→
+  1007→  const produceItems = [
+  1008→    { name: 'APPLES', mat: appleMat, color: 0xc02020 },
+  1009→    { name: 'ORANGES', mat: orangeMat, color: 0xff8c20 },
+  1010→    { name: 'BANANAS', mat: bananaMat, color: 0xf4d020 },
+  1011→    { name: 'LEMONS', mat: lemonMat, color: 0xf4f020 },
+  1012→    { name: 'TOMATOES', mat: tomatoMat, color: 0xd03030 },
+  1013→    { name: 'PEPPERS', mat: pepperRedMat, color: 0xc02020 },
+  1014→  ];
+  1015→
+  1016→  for (let i = 0; i < 6; i++) {
+  1017→    const bz = binStartZ + i * binSpacing;
+  1018→    // Bin base
+  1019→    const binBase = addShadow(new THREE.Mesh(
+  1020→      new THREE.BoxGeometry(30, 6, 14),
+  1021→      binMat
+  1022→    ));
+  1023→    binBase.position.set(binX, 3, bz);
+  1024→    root.add(binBase);
+  1025→    // Flat display surface (no tilt — fruits sit flat on top)
+  1026→    const display = addShadow(new THREE.Mesh(
+  1027→      new THREE.BoxGeometry(28, 1, 12),
+  1028→      new THREE.MeshStandardMaterial({ color: 0x3a5a2a, metalness: 0.1, roughness: 0.7 })
+  1029→    ));
+  1030→    display.position.set(binX, 6.5, bz);
+  1031→    root.add(display);
+  1032→    // Display surface top is at y=7. Fruits sit ON TOP: y = 7 + radius + stacking
+  1033→
+  1034→    // Produce items — piled in the bin, sitting on the display surface
+  1035→    const item = produceItems[i];
+  1036→    for (let p = 0; p < 20; p++) {
+  1037→      const px = binX - 12 + Math.random() * 24;
+  1038→      const pz = bz - 5 + Math.random() * 10;
+  1039→      let shape;
+  1040→      let fruitRadius = 1.2;
+  1041→      if (item.name === 'BANANAS') {
+  1042→        // Bananas = curved cylinders lying flat
+  1043→        fruitRadius = 0.8;
+  1044→        shape = addShadow(new THREE.Mesh(
+  1045→          new THREE.CapsuleGeometry(0.8, 3, 4, 8),
+  1046→          item.mat
+  1047→        ));
+  1048→        shape.scale.set(1, 0.5, 1);
+  1049→        shape.rotation.z = Math.random() * Math.PI;
+  1050→        shape.rotation.x = Math.PI / 2; // lay flat
+  1051→      } else if (item.name === 'LEMONS' || item.name === 'ORANGES' || item.name === 'APPLES') {
+  1052→        fruitRadius = 1.2;
+  1053→        shape = addShadow(new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 8), item.mat));
+  1054→      } else {
+  1055→        fruitRadius = 1;
+  1056→        shape = addShadow(new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), item.mat));
+  1057→      }
+  1058→      // Y position: display top (7) + fruit radius + small random stacking offset (0-2 for piling)
+  1059→      const stackingOffset = Math.random() < 0.6 ? 0 : Math.random() * 2;
+  1060→      const py = 7 + fruitRadius + stackingOffset;
+  1061→      shape.position.set(px, py, pz);
+  1062→      root.add(shape);
+  1063→
+  1064→      // Add stems/leaves to certain fruits (apples, peppers, tomatoes, lemons)
+  1065→      if ((item.name === 'APPLES' || item.name === 'PEPPERS' || item.name === 'TOMATOES' || item.name === 'LEMONS') && Math.random() > 0.4) {
+  1066→        const stemMat = new THREE.MeshStandardMaterial({ color: 0x4a3a20, roughness: 0.8 });
+  1067→        const stem = addShadow(new THREE.Mesh(
+  1068→          new THREE.CylinderGeometry(0.1, 0.15, 0.6, 5),
+  1069→          stemMat
+  1070→        ));
+  1071→        stem.position.set(px, py + fruitRadius + 0.2, pz);
+  1072→        root.add(stem);
+  1073→        // Small leaf (green cone)
+  1074→        if (Math.random() > 0.5) {
+  1075→          const leafMat = new THREE.MeshStandardMaterial({ color: 0x4a8a3a, roughness: 0.7 });
+  1076→          const leaf = addShadow(new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 4), leafMat));
+  1077→          leaf.position.set(px + 0.3, py + fruitRadius + 0.3, pz);
+  1078→          leaf.rotation.z = 0.8;
+  1079→          root.add(leaf);
+  1080→        }
+  1081→      }
+  1082→    }
+  1083→
+  1084→    // Price sign on the bin
+  1085→    const signTex = priceTagTexture(item.name, `$${(0.99 + i * 0.5).toFixed(2)}/lb`);
+  1086→    const sign = addShadow(new THREE.Mesh(
+  1087→      new THREE.PlaneGeometry(10, 2.5),
+  1088→      new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.3 })
+  1089→    ));
+  1090→    sign.position.set(binX, 12, bz - 6);
+  1091→    root.add(sign);
+  1092→  }
+  1093→
+  1094→  // Second row of produce bins (lettuces, grapes, potatoes)
+  1095→  const bin2X = -160;
+  1096→  const produce2 = [
+  1097→    { name: 'LETTUCE', mat: lettuceMat },
+  1098→    { name: 'GRAPES', mat: grapeMat },
+  1099→    { name: 'POTATOES', mat: potatoMat },
+  1100→    { name: 'PEPPERS', mat: pepperGreenMat },
+  1101→  ];
+  1102→  for (let i = 0; i < 4; i++) {
+  1103→    const bz = 100 + i * 18;
+  1104→    const binBase = addShadow(new THREE.Mesh(
+  1105→      new THREE.BoxGeometry(24, 6, 12),
+  1106→      binMat
+  1107→    ));
+  1108→    binBase.position.set(bin2X, 3, bz);
+  1109→    root.add(binBase);
+  1110→    // Flat display surface (no tilt)
+  1111→    const display2 = addShadow(new THREE.Mesh(
+  1112→      new THREE.BoxGeometry(22, 1, 10),
+  1113→      new THREE.MeshStandardMaterial({ color: 0x3a5a2a, metalness: 0.1, roughness: 0.7 })
+  1114→    ));
+  1115→    display2.position.set(bin2X, 6.5, bz);
+  1116→    root.add(display2);
+  1117→
+  1118→    const item = produce2[i];
+  1119→    for (let p = 0; p < 15; p++) {
+  1120→      const px = bin2X - 9 + Math.random() * 18;
+  1121→      const pz = bz - 4 + Math.random() * 8;
+  1122→      let shape;
+  1123→      let fruitRadius = 1;
+  1124→      if (item.name === 'LETTUCE') {
+  1125→        fruitRadius = 1.5;
+  1126→        shape = addShadow(new THREE.Mesh(new THREE.SphereGeometry(1.5, 10, 7), item.mat));
+  1127→        shape.scale.set(1, 0.6, 1);
+  1128→        fruitRadius = 0.9; // scaled height
+  1129→      } else if (item.name === 'GRAPES') {
+  1130→        fruitRadius = 0.5;
+  1131→        shape = addShadow(new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), item.mat));
+  1132→      } else if (item.name === 'POTATOES') {
+  1133→        fruitRadius = 1;
+  1134→        shape = addShadow(new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), item.mat));
+  1135→        shape.scale.set(1.3, 0.8, 1);
+  1136→        fruitRadius = 0.8;
+  1137→      } else {
+  1138→        fruitRadius = 1;
+  1139→        shape = addShadow(new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), item.mat));
+  1140→      }
+  1141→      // Sit on display surface (top at y=7), with small stacking offset
+  1142→      const stackingOffset = Math.random() < 0.6 ? 0 : Math.random() * 1.5;
+  1143→      const py = 7 + fruitRadius + stackingOffset;
+  1144→      shape.position.set(px, py, pz);
+  1145→      root.add(shape);
+  1146→    }
+  1147→  }
+  1148→
+  1149→  // Misting system (visible spray bars above greens)
+  1150→  for (let i = 0; i < 3; i++) {
+  1151→    const mistBar = addShadow(new THREE.Mesh(
+  1152→      new THREE.CylinderGeometry(0.3, 0.3, 24, 8),
+  1153→      new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.7, roughness: 0.3 })
+  1154→    ));
+  1155→    mistBar.rotation.z = Math.PI / 2;
+  1156→    mistBar.position.set(-200, 20, 80 + i * 30);
+  1157→    root.add(mistBar);
+  1158→    // Misting nozzles (small spheres)
+  1159→    for (let n = 0; n < 4; n++) {
+  1160→      const nozzle = addShadow(new THREE.Mesh(
+  1161→        new THREE.SphereGeometry(0.4, 6, 4),
+  1162→        new THREE.MeshStandardMaterial({ color: 0x5a5a62, metalness: 0.7, roughness: 0.3 })
+  1163→      ));
+  1164→      nozzle.position.set(-200 - 8 + n * 5, 19.5, 80 + i * 30);
+  1165→      root.add(nozzle);
+  1166→    }
+  1167→  }
+  1168→
+  1169→  // Refrigerated produce case (for cut fruit, salads) — wall unit
+  1170→  const refCase = addShadow(new THREE.Mesh(
+  1171→    new THREE.BoxGeometry(60, 22, 8),
+  1172→    new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.4, roughness: 0.4 })
+  1173→  ));
+  1174→  refCase.position.set(-240, 11, 150);
+  1175→  root.add(refCase);
+  1176→  // Glass top
+  1177→  const refGlass = addShadow(new THREE.Mesh(
+  1178→    new THREE.BoxGeometry(56, 0.5, 6),
+  1179→    new THREE.MeshStandardMaterial({ color: 0xc8dde8, metalness: 0.3, roughness: 0.1, transparent: true, opacity: 0.5 })
+  1180→  ));
+  1181→  refGlass.position.set(-240, 22.5, 150);
+  1182→  root.add(refGlass);
+  1183→  // Cut fruit containers inside (visible through glass)
+  1184→  for (let i = 0; i < 6; i++) {
+  1185→    const cup = addShadow(new THREE.Mesh(
+  1186→      new THREE.CylinderGeometry(2, 2, 3, 8),
+  1187→      [appleMat, orangeMat, grapeMat, lemonMat, tomatoMat, pepperRedMat][i]
+  1188→    ));
+  1189→    cup.position.set(-260 + i * 8, 18, 150);
+  1190→    root.add(cup);
+  1191→  }
+  1192→}
+  1193→
+  1194→function buildBakery(
+  1195→  root: THREE.Group, breadMat: THREE.Material,
+  1196→  shelfMat: THREE.Material, signMat: THREE.Material
+  1197→) {
+  1198→  // Bakery display case (glass front, X=220, Z=130)
+  1199→  const caseBase = addShadow(new THREE.Mesh(
+  1200→    new THREE.BoxGeometry(50, 10, 8),
+  1201→    new THREE.MeshStandardMaterial({ color: 0x4a3a2a, metalness: 0.2, roughness: 0.6 })
+  1202→  ));
+  1203→  caseBase.position.set(220, 5, 130);
+  1204→  root.add(caseBase);
+  1205→  // Glass case on top
+  1206→  const glassCase = addShadow(new THREE.Mesh(
+  1207→    new THREE.BoxGeometry(48, 16, 6),
+  1208→    new THREE.MeshStandardMaterial({ color: 0xc8dde8, metalness: 0.3, roughness: 0.1, transparent: true, opacity: 0.4 })
+  1209→  ));
+  1210→  glassCase.position.set(220, 18, 130);
+  1211→  root.add(glassCase);
+  1212→  // Pastries inside (small cylinders/spheres)
+  1213→  for (let i = 0; i < 8; i++) {
+  1214→    const pastry = addShadow(new THREE.Mesh(
+  1215→      new THREE.CylinderGeometry(2, 2, 2, 8),
+  1216→      new THREE.MeshStandardMaterial({ color: [0xf4d080, 0xc8a060, 0xd8b070, 0xe8c090][i % 4], roughness: 0.7 })
+  1217→    ));
+  1218→    pastry.position.set(205 + (i % 4) * 10, 12, 128 + Math.floor(i / 4) * 4);
+  1219→    root.add(pastry);
+  1220→  }
+  1221→
+  1222→  // Bread shelves (open wire racks with loaves)
+  1223→  for (let row = 0; row < 3; row++) {
+  1224→    const shelfY = 5 + row * 6;
+  1225→    const shelf = addShadow(new THREE.Mesh(
+  1226→      new THREE.BoxGeometry(40, 0.5, 8),
+  1227→      shelfMat
+  1228→    ));
+  1229→    shelf.position.set(220, shelfY, 160);
+  1230→    root.add(shelf);
+  1231→    // Bread loaves on shelf
+  1232→    for (let b = 0; b < 5; b++) {
+  1233→      const loaf = addShadow(new THREE.Mesh(
+  1234→        new THREE.CapsuleGeometry(1.5, 4, 4, 8),
+  1235→        breadMat
+  1236→      ));
+  1237→      loaf.rotation.z = Math.PI / 2;
+  1238→      loaf.scale.set(1, 1, 0.7);
+  1239→      loaf.position.set(208 + b * 6, shelfY + 2, 160);
+  1240→      root.add(loaf);
+  1241→    }
+  1242→  }
+  1243→
+  1244→  // Cake display (tiered round display)
+  1245→  const cakeStand = addShadow(new THREE.Mesh(
+  1246→    new THREE.CylinderGeometry(8, 9, 6, 16),
+  1247→    new THREE.MeshStandardMaterial({ color: 0xe8e0d4, metalness: 0.1, roughness: 0.4 })
+  1248→  ));
+  1249→  cakeStand.position.set(250, 3, 160);
+  1250→  root.add(cakeStand);
+  1251→  // Tier 2
+  1252→  const cakeTier2 = addShadow(new THREE.Mesh(
+  1253→    new THREE.CylinderGeometry(5, 6, 4, 16),
+  1254→    new THREE.MeshStandardMaterial({ color: 0xe8e0d4, metalness: 0.1, roughness: 0.4 })
+  1255→  ));
+  1256→  cakeTier2.position.set(250, 8, 160);
+  1257→  root.add(cakeTier2);
+  1258→  // Cake on top
+  1259→  const cake = addShadow(new THREE.Mesh(
+  1260→    new THREE.CylinderGeometry(4, 4, 4, 16),
+  1261→    new THREE.MeshStandardMaterial({ color: 0xf4d0e0, roughness: 0.5 })
+  1262→  ));
+  1263→  cake.position.set(250, 12, 160);
+  1264→  root.add(cake);
+  1265→
+  1266→  // "BAKERY" sign
+  1267→  const signTex = categoryBannerTexture('FRESH BAKED', '#c88030');
+  1268→  const sign = addShadow(new THREE.Mesh(
+  1269→    new THREE.PlaneGeometry(40, 8),
+  1270→    new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.3 })
+  1271→  ));
+  1272→  sign.position.set(220, 30, 122);
+  1273→  root.add(sign);
+  1274→}
+  1275→
+  1276→function buildDeli(
+  1277→  root: THREE.Group, glassMat: THREE.Material,
+  1278→  coolerFrameMat: THREE.Material, signMat: THREE.Material, shelfMat: THREE.Material
+  1279→) {
+  1280→  // Deli counter (long glass display case)
+  1281→  const counterBase = addShadow(new THREE.Mesh(
+  1282→    new THREE.BoxGeometry(80, 8, 8),
+  1283→    new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.4, roughness: 0.4 })
+  1284→  ));
+  1285→  counterBase.position.set(-230, 4, 180);
+  1286→  root.add(counterBase);
+  1287→  // Glass case on top (curved look — use a box)
+  1288→  const glassCase = addShadow(new THREE.Mesh(
+  1289→    new THREE.BoxGeometry(78, 14, 6),
+  1290→    glassMat
+  1291→  ));
+  1292→  glassCase.position.set(-230, 17, 180);
+  1293→  root.add(glassCase);
+  1294→  // Prepared foods inside (colored trays)
+  1295→  const deliFoods = [
+  1296→    { color: 0xc06030, name: 'ROAST CHICKEN' },
+  1297→    { color: 0xa04020, name: 'ROAST BEEF' },
+  1298→    { color: 0xe8c060, name: 'MACARONI' },
+  1299→    { color: 0x4a8a3a, name: 'SALAD' },
+  1300→    { color: 0xd0a060, name: 'POTATOES' },
+  1301→    { color: 0xc08040, name: 'MEATLOAF' },
+  1302→  ];
+  1303→  for (let i = 0; i < 6; i++) {
+  1304→    const food = addShadow(new THREE.Mesh(
+  1305→      new THREE.BoxGeometry(10, 3, 4),
+  1306→      new THREE.MeshStandardMaterial({ color: deliFoods[i].color, roughness: 0.6 })
+  1307→    ));
+  1308→    food.position.set(-265 + i * 12, 11, 180);
+  1309→    root.add(food);
+  1310→  }
+  1311→  // Price sign
+  1312→  const signTex = categoryBannerTexture('DELI', '#a04020');
+  1313→  const sign = addShadow(new THREE.Mesh(
+  1314→    new THREE.PlaneGeometry(30, 8),
+  1315→    new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.3 })
+  1316→  ));
+  1317→  sign.position.set(-230, 30, 175);
+  1318→  root.add(sign);
+  1319→  // Meat slicer (visible on the counter)
+  1320→  const slicerBase = addShadow(new THREE.Mesh(
+  1321→    new THREE.BoxGeometry(6, 8, 5),
+  1322→    new THREE.MeshStandardMaterial({ color: 0xa8acb4, metalness: 0.8, roughness: 0.2 })
+  1323→  ));
+  1324→  slicerBase.position.set(-195, 12, 180);
+  1325→  root.add(slicerBase);
+  1326→  // Slicer blade
+  1327→  const blade = addShadow(new THREE.Mesh(
+  1328→    new THREE.CylinderGeometry(3, 3, 0.3, 16),
+  1329→    new THREE.MeshStandardMaterial({ color: 0xc0c0c8, metalness: 0.95, roughness: 0.1 })
+  1330→  ));
+  1331→  blade.rotation.z = Math.PI / 2;
+  1332→  blade.position.set(-195, 15, 180);
+  1333→  root.add(blade);
+  1334→}
+  1335→
+  1336→function buildDairyWall(root: THREE.Group, coolerFrameMat: THREE.Material) {
+  1337→  // Wall of glass-door coolers along the north wall (Z=195)
+  1338→  // 12 cooler units, each 40 wide, side by side
+  1339→  const coolerTex = coolerDoorTexture();
+  1340→  const coolerCount = 12;
+  1341→  const coolerW = 40;
+  1342→  const totalW = coolerCount * coolerW;
+  1343→  const startX = -totalW / 2 + coolerW / 2;
+  1344→
+  1345→  for (let i = 0; i < coolerCount; i++) {
+  1346→    const cx = startX + i * coolerW;
+  1347→    // Cooler frame (box)
+  1348→    const frame = addShadow(new THREE.Mesh(
+  1349→      new THREE.BoxGeometry(coolerW - 1, 25, 8),
+  1350→      coolerFrameMat
+  1351→    ));
+  1352→    frame.position.set(cx, 12.5, 193);
+  1353→    root.add(frame);
+  1354→    // Glass door (textured with frost + handle)
+  1355→    const door = addShadow(new THREE.Mesh(
+  1356→      new THREE.PlaneGeometry(coolerW - 4, 22),
+  1357→      new THREE.MeshStandardMaterial({
+  1358→        map: coolerTex, metalness: 0.3, roughness: 0.1,
+  1359→        transparent: true, opacity: 0.7,
+  1360→      })
+  1361→    ));
+  1362→    door.position.set(cx, 13, 189);
+  1363→    root.add(door);
+  1364→    // Shelves inside (faintly visible through frost)
+  1365→    for (let s = 0; s < 4; s++) {
+  1366→      const shelf = addShadow(new THREE.Mesh(
+  1367→        new THREE.BoxGeometry(coolerW - 4, 0.3, 6),
+  1368→        new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.3, roughness: 0.5 })
+  1369→      ));
+  1370→      shelf.position.set(cx, 4 + s * 5.5, 192);
+  1371→      root.add(shelf);
+  1372→      // Dairy products on shelf (white/brown jugs and boxes)
+  1373→      for (let p = 0; p < 4; p++) {
+  1374→        const prodColor = [0xf4f0e8, 0xc8a060, 0x2a6ab0, 0xf4d020][p % 4];
+  1375→        const prod = addShadow(new THREE.Mesh(
+  1376→          new THREE.BoxGeometry(5, 4, 4),
+  1377→          new THREE.MeshStandardMaterial({ color: prodColor, roughness: 0.6 })
+  1378→        ));
+  1379→        prod.position.set(cx - 12 + p * 8, 4 + s * 5.5 + 2, 192);
+  1380→        root.add(prod);
+  1381→      }
+  1382→    }
+  1383→  }
+  1384→
+  1385→  // Cooler top signage ("DAIRY" / "MILK" / "CHEESE" / "YOGURT")
+  1386→  const sectionLabels = ['MILK', 'JUICE', 'YOGURT', 'CHEESE', 'BUTTER', 'CREAM'];
+  1387→  for (let i = 0; i < 6; i++) {
+  1388→    const cx = startX + i * coolerW * 2 + coolerW / 2;
+  1389→    const labelTex = categoryBannerTexture(sectionLabels[i], '#2a6ab0');
+  1390→    const label = addShadow(new THREE.Mesh(
+  1391→      new THREE.PlaneGeometry(coolerW * 2 - 4, 4),
+  1392→      new THREE.MeshStandardMaterial({ map: labelTex, emissive: 0xffffff, emissiveMap: labelTex, emissiveIntensity: 0.3 })
+  1393→    ));
+  1394→    label.position.set(cx, 27, 189);
+  1395→    root.add(label);
+  1396→  }
+  1397→}
+  1398→
+  1399→function buildFrozenSection(
+  1400→  root: THREE.Group, coolerFrameMat: THREE.Material, glassMat: THREE.Material
+  1401→) {
+  1402→  // Chest freezers (open-top, X=160-260, Z=150-180)
+  1403→  const freezerCount = 5;
+  1404→  for (let i = 0; i < freezerCount; i++) {
+  1405→    const fx = 165 + i * 22;
+  1406→    // Freezer body
+  1407→    const body = addShadow(new THREE.Mesh(
+  1408→      new THREE.BoxGeometry(18, 10, 30),
+  1409→      coolerFrameMat
+  1410→    ));
+  1411→    body.position.set(fx, 5, 165);
+  1412→    root.add(body);
+  1413→    // Open top (frosted glass — slightly transparent)
+  1414→    const top = addShadow(new THREE.Mesh(
+  1415→      new THREE.BoxGeometry(16, 0.5, 28),
+  1416→      glassMat
+  1417→    ));
+  1418→    top.position.set(fx, 10.5, 165);
+  1419→    root.add(top);
+  1420→    // Frozen products inside (visible through frost — boxes and bags)
+  1421→    for (let p = 0; p < 6; p++) {
+  1422→      const prodColor = [0x2a6ab0, 0xc02020, 0xf4a020, 0x4a8a3a, 0xa040c0, 0xf4f0e8][p];
+  1423→      const prod = addShadow(new THREE.Mesh(
+  1424→        new THREE.BoxGeometry(5, 4, 4),
+  1425→        new THREE.MeshStandardMaterial({ color: prodColor, roughness: 0.6 })
+  1426→      ));
+  1427→      prod.position.set(fx - 6 + (p % 3) * 6, 7, 155 + Math.floor(p / 3) * 12);
+  1428→      root.add(prod);
+  1429→    }
+  1430→  }
+  1431→
+  1432→  // Vertical freezer cases (glass-door, along the east wall area)
+  1433→  const vFreezerTex = coolerDoorTexture();
+  1434→  for (let i = 0; i < 4; i++) {
+  1435→    const fx = 270;
+  1436→    const fz = 150 + i * 12;
+  1437→    const frame = addShadow(new THREE.Mesh(
+  1438→      new THREE.BoxGeometry(8, 25, 10),
+  1439→      coolerFrameMat
+  1440→    ));
+  1441→    frame.position.set(fx, 12.5, fz);
+  1442→    root.add(frame);
+  1443→    // Glass door
+  1444→    const door = addShadow(new THREE.Mesh(
+  1445→      new THREE.PlaneGeometry(6, 22),
+  1446→      new THREE.MeshStandardMaterial({
+  1447→        map: vFreezerTex, metalness: 0.3, roughness: 0.1,
+  1448→        transparent: true, opacity: 0.7,
+  1449→      })
+  1450→    ));
+  1451→    door.position.set(fx - 5, 13, fz);
+  1452→    door.rotation.y = Math.PI / 2;
+  1453→    root.add(door);
+  1454→  }
+  1455→}
+  1456→
+  1457→function buildCheckoutLane(
+  1458→  root: THREE.Group, x: number, z: number, num: number,
+  1459→  checkoutMat: THREE.Material, conveyorMat: THREE.Material,
+  1460→  registerMat: THREE.Material, blackMat: THREE.Material
+  1461→) {
+  1462→  // Checkout counter (L-shaped — main counter + bagging area)
+  1463→  // Main counter
+  1464→  const counter = addShadow(new THREE.Mesh(
+  1465→    new THREE.BoxGeometry(30, 8, 10),
+  1466→    checkoutMat
+  1467→  ));
+  1468→  counter.position.set(x, 4, z);
+  1469→  root.add(counter);
+  1470→  // Counter top (lighter)
+  1471→  const top = addShadow(new THREE.Mesh(
+  1472→    new THREE.BoxGeometry(32, 0.5, 12),
+  1473→    new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.3, roughness: 0.4 })
+  1474→  ));
+  1475→  top.position.set(x, 8.25, z);
+  1476→  root.add(top);
+  1477→
+  1478→  // Conveyor belt (moving belt — dark rubber surface)
+  1479→  const belt = addShadow(new THREE.Mesh(
+  1480→    new THREE.BoxGeometry(24, 0.3, 6),
+  1481→    conveyorMat
+  1482→  ));
+  1483→  belt.position.set(x, 8.5, z + 2);
+  1484→  root.add(belt);
+  1485→  // Belt rollers (visible at the ends)
+  1486→  for (const bx of [x - 12, x + 12]) {
+  1487→    const roller = addShadow(new THREE.Mesh(
+  1488→      new THREE.CylinderGeometry(0.6, 0.6, 6, 8),
+  1489→      new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.7, roughness: 0.3 })
+  1490→    ));
+  1491→    roller.rotation.x = Math.PI / 2;
+  1492→    roller.position.set(bx, 8.3, z + 2);
+  1493→    root.add(roller);
+  1494→  }
+  1495→
+  1496→  // Cash register (POS terminal)
+  1497→  const register = addShadow(new THREE.Mesh(
+  1498→    new THREE.BoxGeometry(6, 5, 5),
+  1499→    registerMat
+  1500→  ));
+  1501→  register.position.set(x + 8, 11, z - 1);
+  1502→  root.add(register);
+  1503→  // Register screen (tilted)
+  1504→  const screen = addShadow(new THREE.Mesh(
+  1505→    new THREE.PlaneGeometry(4, 3),
+  1506→    new THREE.MeshStandardMaterial({ color: 0x1a1a2a, emissive: 0x2a4a6a, emissiveIntensity: 0.4 })
+  1507→  ));
+  1508→  screen.position.set(x + 8, 12.5, z - 2.5);
+  1509→  screen.rotation.x = -0.3;
+  1510→  root.add(screen);
+  1511→  // Register keyboard
+  1512→  const keyboard = addShadow(new THREE.Mesh(
+  1513→    new THREE.BoxGeometry(4, 0.5, 3),
+  1514→    blackMat
+  1515→  ));
+  1516→  keyboard.position.set(x + 8, 9, z);
+  1517→  root.add(keyboard);
+  1518→  // Barcode scanner (handheld)
+  1519→  const scanner = addShadow(new THREE.Mesh(
+  1520→    new THREE.CylinderGeometry(0.6, 0.6, 3, 8),
+  1521→    blackMat
+  1522→  ));
+  1523→  scanner.rotation.z = Math.PI / 2;
+  1524→  scanner.position.set(x + 5, 9, z + 1);
+  1525→  root.add(scanner);
+  1526→  // Scanner base (the flat scanner embedded in the counter)
+  1527→  const scannerBase = addShadow(new THREE.Mesh(
+  1528→    new THREE.BoxGeometry(4, 0.3, 3),
+  1529→    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.5, roughness: 0.4, emissive: 0x10ff10, emissiveIntensity: 0.1 })
+  1530→  ));
+  1531→  scannerBase.position.set(x + 2, 8.5, z + 1);
+  1532→  root.add(scannerBase);
+  1533→
+  1534→  // Bagging area (extends to the right of the register)
+  1535→  const bagging = addShadow(new THREE.Mesh(
+  1536→    new THREE.BoxGeometry(12, 7, 10),
+  1537→    checkoutMat
+  1538→  ));
+  1539→  bagging.position.set(x + 20, 3.5, z);
+  1540→  root.add(bagging);
+  1541→  const baggingTop = addShadow(new THREE.Mesh(
+  1542→    new THREE.BoxGeometry(13, 0.5, 11),
+  1543→    new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.3, roughness: 0.4 })
+  1544→  ));
+  1545→  baggingTop.position.set(x + 20, 7.25, z);
+  1546→  root.add(baggingTop);
+  1547→
+  1548→  // Bag rack (plastic bag holder above bagging area)
+  1549→  const bagRack = addShadow(new THREE.Mesh(
+  1550→    new THREE.CylinderGeometry(0.3, 0.3, 10, 8),
+  1551→    new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.5, roughness: 0.4 })
+  1552→  ));
+  1553→  bagRack.rotation.z = Math.PI / 2;
+  1554→  bagRack.position.set(x + 20, 12, z);
+  1555→  root.add(bagRack);
+  1556→  // Hanging bags (small white boxes)
+  1557→  for (let b = 0; b < 3; b++) {
+  1558→    const bag = addShadow(new THREE.Mesh(
+  1559→      new THREE.BoxGeometry(3, 4, 0.2),
+  1560→      new THREE.MeshStandardMaterial({ color: 0xe8e8e0, roughness: 0.7, transparent: true, opacity: 0.8 })
+  1561→    ));
+  1562→    bag.position.set(x + 17 + b * 3, 10, z);
+  1563→    root.add(bag);
+  1564→  }
+  1565→
+  1566→  // Divider lane (the next customer's queue — a small barrier)
+  1567→  const divider = addShadow(new THREE.Mesh(
+  1568→    new THREE.BoxGeometry(0.5, 3, 8),
+  1569→    new THREE.MeshStandardMaterial({ color: 0xf4a020, metalness: 0.2, roughness: 0.5 })
+  1570→  ));
+  1571→  divider.position.set(x - 14, 8.5, z + 2);
+  1572→  root.add(divider);
+  1573→}
+  1574→
+  1575→function buildCustomerService(
+  1576→  root: THREE.Group, shelfMat: THREE.Material, signMat: THREE.Material, blackMat: THREE.Material
+  1577→) {
+  1578→  // Customer service desk (front-right corner, X=260, Z=-170)
+  1579→  const desk = addShadow(new THREE.Mesh(
+  1580→    new THREE.BoxGeometry(40, 8, 12),
+  1581→    new THREE.MeshStandardMaterial({ color: 0x4a3a2a, metalness: 0.2, roughness: 0.5 })
+  1582→  ));
+  1583→  desk.position.set(260, 4, -170);
+  1584→  root.add(desk);
+  1585→  // Desk top
+  1586→  const deskTop = addShadow(new THREE.Mesh(
+  1587→    new THREE.BoxGeometry(42, 0.5, 14),
+  1588→    new THREE.MeshStandardMaterial({ color: 0x6a5a4a, metalness: 0.2, roughness: 0.4 })
+  1589→  ));
+  1590→  deskTop.position.set(260, 8.25, -170);
+  1591→  root.add(deskTop);
+  1592→  // Computer monitor on desk
+  1593→  const mon = addShadow(new THREE.Mesh(
+  1594→    new THREE.BoxGeometry(6, 4, 0.5),
+  1595→    blackMat
+  1596→  ));
+  1597→  mon.position.set(260, 12, -174);
+  1598→  mon.rotation.x = -0.2;
+  1599→  root.add(mon);
+  1600→  // Screen
+  1601→  const screen = addShadow(new THREE.Mesh(
+  1602→    new THREE.PlaneGeometry(5, 3),
+  1603→    new THREE.MeshStandardMaterial({ color: 0x1a1a2a, emissive: 0x2a4a6a, emissiveIntensity: 0.4 })
+  1604→  ));
+  1605→  screen.position.set(260, 12, -173.7);
+  1606→  screen.rotation.x = -0.2;
+  1607→  root.add(screen);
+  1608→  // Sign
+  1609→  const signTex = categoryBannerTexture('CUSTOMER SERVICE', '#2a6a4a');
+  1610→  const sign = addShadow(new THREE.Mesh(
+  1611→    new THREE.PlaneGeometry(36, 8),
+  1612→    new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.3 })
+  1613→  ));
+  1614→  sign.position.set(260, 20, -178);
+  1615→  root.add(sign);
+  1616→}
+  1617→

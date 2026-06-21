@@ -1,0 +1,1185 @@
+     1→// ====================== F1 CAR (EXPLODED VIEW) ======================
+     2→// A modern Formula 1 car with all major components separated in an exploded view.
+     3→// Components are laid out vertically along the Y axis so every part is visible.
+     4→//
+     5→// Scale: 10 units = 1 meter. F1 car length ~5.5m, width ~2m, height ~1m.
+     6→
+     7→import * as THREE from 'three';
+     8→import { addShadow, metal, darkSteel, aluminum, plastic, rubber, brass } from './materials-dsl';
+     9→
+    10→function carbonFiberTexture(): THREE.CanvasTexture {
+    11→  const size = 128;
+    12→  const canvas = document.createElement('canvas');
+    13→  canvas.width = size; canvas.height = size;
+    14→  const ctx = canvas.getContext('2d')!;
+    15→  ctx.fillStyle = '#1a1a1e';
+    16→  ctx.fillRect(0, 0, size, size);
+    17→  const cell = 16;
+    18→  for (let x = 0; x < size; x += cell) {
+    19→    for (let y = 0; y < size; y += cell) {
+    20→      const g1 = ctx.createLinearGradient(x, y, x + cell, y + cell);
+    21→      g1.addColorStop(0, '#2a2a2e'); g1.addColorStop(0.5, '#3a3a3e'); g1.addColorStop(1, '#1a1a1e');
+    22→      ctx.fillStyle = g1;
+    23→      ctx.fillRect(x, y, cell / 2 - 0.5, cell / 2 - 0.5);
+    24→      ctx.fillRect(x + cell / 2, y + cell / 2, cell / 2 - 0.5, cell / 2 - 0.5);
+    25→      const g2 = ctx.createLinearGradient(x + cell / 2, y, x, y + cell / 2);
+    26→      g2.addColorStop(0, '#252528'); g2.addColorStop(0.5, '#353538'); g2.addColorStop(1, '#1a1a1e');
+    27→      ctx.fillStyle = g2;
+    28→      ctx.fillRect(x + cell / 2, y, cell / 2 - 0.5, cell / 2 - 0.5);
+    29→      ctx.fillRect(x, y + cell / 2, cell / 2 - 0.5, cell / 2 - 0.5);
+    30→    }
+    31→  }
+    32→  const tex = new THREE.CanvasTexture(canvas);
+    33→  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    34→  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    35→  return tex;
+    36→}
+    37→
+    38→function tireTexture(): THREE.CanvasTexture {
+    39→  const size = 256;
+    40→  const canvas = document.createElement('canvas');
+    41→  canvas.width = size; canvas.height = size;
+    42→  const ctx = canvas.getContext('2d')!;
+    43→  ctx.fillStyle = '#0a0a0a';
+    44→  ctx.fillRect(0, 0, size, size);
+    45→  for (let i = 0; i < 80; i++) {
+    46→    ctx.strokeStyle = `rgba(${30 + Math.random() * 20},${30 + Math.random() * 20},${30 + Math.random() * 20},0.3)`;
+    47→    ctx.lineWidth = 1 + Math.random();
+    48→    ctx.beginPath();
+    49→    const y = Math.random() * size;
+    50→    ctx.moveTo(0, y);
+    51→    ctx.lineTo(size, y + (Math.random() - 0.5) * 6);
+    52→    ctx.stroke();
+    53→  }
+    54→  ctx.fillStyle = 'rgba(180,180,180,0.15)';
+    55→  ctx.fillRect(40, size / 2 - 15, size - 80, 30);
+    56→  const tex = new THREE.CanvasTexture(canvas);
+    57→  tex.colorSpace = THREE.SRGBColorSpace;
+    58→  return tex;
+    59→}
+    60→
+    61→// Sponsorship/number decal texture
+    62→function decalTexture(text: string, bg: string, fg: string): THREE.CanvasTexture {
+    63→  const w = 128, h = 64;
+    64→  const canvas = document.createElement('canvas');
+    65→  canvas.width = w; canvas.height = h;
+    66→  const ctx = canvas.getContext('2d')!;
+    67→  ctx.fillStyle = bg;
+    68→  ctx.fillRect(0, 0, w, h);
+    69→  ctx.fillStyle = fg;
+    70→  ctx.font = 'bold 32px Arial';
+    71→  ctx.textAlign = 'center';
+    72→  ctx.textBaseline = 'middle';
+    73→  ctx.fillText(text, w / 2, h / 2 + 2);
+    74→  const tex = new THREE.CanvasTexture(canvas);
+    75→  tex.colorSpace = THREE.SRGBColorSpace;
+    76→  return tex;
+    77→}
+    78→
+    79→export function createF1CarGeometry(exploded = true): THREE.Group {
+    80→  const root = new THREE.Group();
+    81→
+    82→  // Y positions for each component — assembled (on the car) vs exploded (separated)
+    83→  // When exploded, components are spread along Y for visibility.
+    84→  // When assembled, components are at their correct positions on a real F1 car.
+    85→  const Y = exploded ? {
+    86→    floor: 0, frontWing: 12, frontWheels: 22, frontSusp: 32, nose: 42,
+    87→    mono: 52, sidePods: 62, bargeboards: 62, engCover: 72, powerUnit: 82,
+    88→    exhaust: 88, rearSusp: 92, rearWheels: 92, rearWing: 102, tWing: 112,
+    89→    halo: 55, steering: 54, seat: 52, headrest: 56, hans: 55,
+    90→    cockpit: 53, rollHoop: 56, mirrors: 55,
+    91→  } : {
+    92→    floor: 0, frontWing: 0.5, frontWheels: 3.5, frontSusp: 2.5, nose: 1.5,
+    93→    mono: 2.5, sidePods: 2, bargeboards: 2, engCover: 3.5, powerUnit: 2.5,
+    94→    exhaust: 3.5, rearSusp: 3.5, rearWheels: 3.8, rearWing: 5, tWing: 5.5,
+    95→    halo: 3.5, steering: 2.5, seat: 2, headrest: 3.5, hans: 3,
+    96→    cockpit: 3, rollHoop: 4, mirrors: 3.5,
+    97→  };
+    98→
+    99→  const carbonTex = carbonFiberTexture();
+   100→  carbonTex.repeat.set(3, 3);
+   101→  const carbonMat = new THREE.MeshStandardMaterial({ map: carbonTex, metalness: 0.5, roughness: 0.4 });
+   102→  const carbonMatFlat = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.4, roughness: 0.5 });
+   103→  const tireTex = tireTexture();
+   104→  const tireMat = new THREE.MeshStandardMaterial({ map: tireTex, color: 0x1a1a1a, metalness: 0.1, roughness: 0.9 });
+   105→  const rimMat = new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.9, roughness: 0.15 });
+   106→  const brakeMat = new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.7, roughness: 0.3 });
+   107→  const brakeDiscMat = new THREE.MeshStandardMaterial({ color: 0x8a5a3a, metalness: 0.6, roughness: 0.4 });
+   108→  const suspensionMat = new THREE.MeshStandardMaterial({ color: 0x3a3a40, metalness: 0.8, roughness: 0.3 });
+   109→  const accentRedMat = new THREE.MeshStandardMaterial({ color: 0xc0202a, metalness: 0.6, roughness: 0.3 });
+   110→  const accentBlueMat = new THREE.MeshStandardMaterial({ color: 0x1a4aaa, metalness: 0.6, roughness: 0.3 });
+   111→  const accentGreenMat = new THREE.MeshStandardMaterial({ color: 0x00a060, metalness: 0.5, roughness: 0.3 });
+   112→  const goldMat = new THREE.MeshStandardMaterial({ color: 0xc09545, metalness: 0.9, roughness: 0.2 });
+   113→  const seatMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.2, roughness: 0.8 });
+   114→  const engineMat = new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.8, roughness: 0.3 });
+   115→  const titaniumMat = new THREE.MeshStandardMaterial({ color: 0x9a9aa2, metalness: 0.7, roughness: 0.35 });
+   116→  const rubberMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.1, roughness: 0.8 });
+   117→
+   118→  // ============================================================
+   119→  // 1. FLOOR / UNDERBODY + DIFFUSER (Y=0)
+   120→  // ============================================================
+   121→  const floor = addShadow(new THREE.Mesh(
+   122→    new THREE.BoxGeometry(18, 0.5, 35), carbonMatFlat
+   123→  ));
+   124→  floor.position.set(0, 0, 0);
+   125→  root.add(floor);
+   126→  // Plank
+   127→  const plank = addShadow(new THREE.Mesh(
+   128→    new THREE.BoxGeometry(2, 0.3, 30),
+   129→    new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.8 })
+   130→  ));
+   131→  plank.position.set(0, -0.4, 0);
+   132→  root.add(plank);
+   133→  // Diffuser — angled vanes at rear
+   134→  for (let i = -3; i <= 3; i++) {
+   135→    const vane = addShadow(new THREE.Mesh(
+   136→      new THREE.BoxGeometry(0.2, 3.5, 7), carbonMatFlat
+   137→    ));
+   138→    vane.position.set(i * 2.2, 1.75, 16);
+   139→    vane.rotation.x = -0.35;
+   140→    root.add(vane);
+   141→  }
+   142→  // Diffuser outer walls
+   143→  for (const dx of [-7, 7]) {
+   144→    const wall = addShadow(new THREE.Mesh(
+   145→      new THREE.BoxGeometry(0.5, 4, 8), carbonMat
+   146→    ));
+   147→    wall.position.set(dx, 2, 16);
+   148→    wall.rotation.x = -0.25;
+   149→    root.add(wall);
+   150→  }
+   151→  // Floor edge wings (turning vanes on the floor edges)
+   152→  for (const fx of [-8, 8]) {
+   153→    for (let f = 0; f < 3; f++) {
+   154→      const edgeWing = addShadow(new THREE.Mesh(
+   155→        new THREE.BoxGeometry(0.3, 2, 2.5), carbonMat
+   156→      ));
+   157→      edgeWing.position.set(fx, 1, -8 + f * 5);
+   158→      edgeWing.rotation.y = 0.15;
+   159→      root.add(edgeWing);
+   160→    }
+   161→  }
+   162→  // Front floor splitter
+   163→  const splitter = addShadow(new THREE.Mesh(
+   164→    new THREE.BoxGeometry(16, 0.3, 3), carbonMat
+   165→  ));
+   166→  splitter.position.set(0, 0.3, -16);
+   167→  root.add(splitter);
+   168→
+   169→  // ============================================================
+   170→  // 2. FRONT WING ASSEMBLY (Y=12)
+   171→  // ============================================================
+   172→  const fwY = Y.frontWing;
+   173→  // Mainplane
+   174→  const fwMain = addShadow(new THREE.Mesh(
+   175→    new THREE.BoxGeometry(20, 0.5, 4), carbonMat
+   176→  ));
+   177→  fwMain.position.set(0, fwY, -18);
+   178→  root.add(fwMain);
+   179→  // 2nd element (flap)
+   180→  const fwFlap = addShadow(new THREE.Mesh(
+   181→    new THREE.BoxGeometry(20, 0.4, 2), carbonMat
+   182→  ));
+   183→  fwFlap.position.set(0, fwY + 1, -17);
+   184→  root.add(fwFlap);
+   185→  // 3rd element (upper flap)
+   186→  const fwFlap2 = addShadow(new THREE.Mesh(
+   187→    new THREE.BoxGeometry(18, 0.3, 1.5), carbonMat
+   188→  ));
+   189→  fwFlap2.position.set(0, fwY + 1.8, -16.5);
+   190→  root.add(fwFlap2);
+   191→  // 4th element (top flap / cascade)
+   192→  const fwCascade = addShadow(new THREE.Mesh(
+   193→    new THREE.BoxGeometry(14, 0.25, 1), carbonMat
+   194→  ));
+   195→  fwCascade.position.set(0, fwY + 2.5, -16);
+   196→  root.add(fwCascade);
+   197→  // Endplates (2x) — tall with cutouts
+   198→  for (const ex of [-10, 10]) {
+   199→    const ep = addShadow(new THREE.Mesh(
+   200→      new THREE.BoxGeometry(0.5, 5, 6), carbonMat
+   201→    ));
+   202→    ep.position.set(ex, fwY + 0.5, -17);
+   203→    root.add(ep);
+   204→    // Endplate cascade (small winglet on top of endplate)
+   205→    const winglet = addShadow(new THREE.Mesh(
+   206→      new THREE.BoxGeometry(0.4, 2, 2), carbonMat
+   207→    ));
+   208→    winglet.position.set(ex, fwY + 3.5, -16);
+   209→    winglet.rotation.y = 0.2;
+   210→    root.add(winglet);
+   211→    // Endplate strake (vertical fin under endplate)
+   212→    const strake = addShadow(new THREE.Mesh(
+   213→      new THREE.BoxGeometry(0.3, 2, 1), carbonMat
+   214→    ));
+   215→    strake.position.set(ex, fwY - 1.5, -19);
+   216→    root.add(strake);
+   217→  }
+   218→  // Under-wing strakes (5 vertical vanes under the mainplane)
+   219→  for (let s = -2; s <= 2; s++) {
+   220→    const strake = addShadow(new THREE.Mesh(
+   221→      new THREE.BoxGeometry(0.15, 1, 3), carbonMat
+   222→    ));
+   223→    strake.position.set(s * 4, fwY - 0.5, -18);
+   224→    root.add(strake);
+   225→  }
+   226→  // Wing pillars (connect to nose — 2x)
+   227→  for (const px of [-2.5, 2.5]) {
+   228→    const pillar = addShadow(new THREE.Mesh(
+   229→      new THREE.CylinderGeometry(0.25, 0.3, 3, 6), carbonMat
+   230→    ));
+   231→    pillar.position.set(px, fwY + 1.5, -19.5);
+   232→    root.add(pillar);
+   233→  }
+   234→
+   235→  // ============================================================
+   236→  // 3. FRONT WHEELS (Y=22) — 2x
+   237→  // ============================================================
+   238→  for (const wx of [-9, 9]) {
+   239→    // Tire (torus)
+   240→    const tire = addShadow(new THREE.Mesh(
+   241→      new THREE.TorusGeometry(3.5, 1.5, 16, 24), tireMat
+   242→    ));
+   243→    tire.rotation.y = Math.PI / 2;
+   244→    tire.position.set(wx, Y.frontWheels, -14);
+   245→    root.add(tire);
+   246→    // Tire inner (fill the hole)
+   247→    const tireInner = addShadow(new THREE.Mesh(
+   248→      new THREE.CylinderGeometry(2, 2, 2.5, 16), tireMat
+   249→    ));
+   250→    tireInner.rotation.z = Math.PI / 2;
+   251→    tireInner.position.set(wx, Y.frontWheels, -14);
+   252→    root.add(tireInner);
+   253→    // Rim (center hub)
+   254→    const rim = addShadow(new THREE.Mesh(
+   255→      new THREE.CylinderGeometry(2.5, 2.5, 2, 16), rimMat
+   256→    ));
+   257→    rim.rotation.z = Math.PI / 2;
+   258→    rim.position.set(wx, Y.frontWheels, -14);
+   259→    root.add(rim);
+   260→    // Rim spokes (8x — F1 wheel design)
+   261→    for (let sp = 0; sp < 8; sp++) {
+   262→      const spoke = addShadow(new THREE.Mesh(
+   263→        new THREE.BoxGeometry(1.8, 0.3, 0.3), rimMat
+   264→      ));
+   265→      spoke.position.set(wx, Y.frontWheels, -14);
+   266→      spoke.rotation.z = (sp / 8) * Math.PI * 2;
+   267→      root.add(spoke);
+   268→    }
+   269→    // Wheel nut (center)
+   270→    const nut = addShadow(new THREE.Mesh(
+   271→      new THREE.CylinderGeometry(0.5, 0.5, 0.8, 6),
+   272→      new THREE.MeshStandardMaterial({ color: 0xc02020, metalness: 0.6, roughness: 0.3 })
+   273→    ));
+   274→    nut.rotation.z = Math.PI / 2;
+   275→    nut.position.set(wx, Y.frontWheels, -14);
+   276→    root.add(nut);
+   277→    // Brake disc
+   278→    const brake = addShadow(new THREE.Mesh(
+   279→      new THREE.CylinderGeometry(2.8, 2.8, 0.5, 16), brakeDiscMat
+   280→    ));
+   281→    brake.rotation.z = Math.PI / 2;
+   282→    brake.position.set(wx, Y.frontWheels, -14);
+   283→    root.add(brake);
+   284→    // Brake disc vanes (radial cooling vanes)
+   285→    for (let v = 0; v < 12; v++) {
+   286→      const vane = addShadow(new THREE.Mesh(
+   287→        new THREE.BoxGeometry(2, 0.15, 0.3), brakeMat
+   288→      ));
+   289→      vane.position.set(wx, Y.frontWheels, -14);
+   290→      vane.rotation.z = (v / 12) * Math.PI * 2;
+   291→      root.add(vane);
+   292→    }
+   293→    // Brake caliper (6-piston)
+   294→    const caliper = addShadow(new THREE.Mesh(
+   295→      new THREE.BoxGeometry(2.5, 2, 2), accentRedMat
+   296→    ));
+   297→    caliper.position.set(wx, 25, -14);
+   298→    root.add(caliper);
+   299→    // Caliper pistons (3 visible dots)
+   300→    for (let p = 0; p < 3; p++) {
+   301→      const piston = addShadow(new THREE.Mesh(
+   302→        new THREE.CylinderGeometry(0.25, 0.25, 0.3, 8),
+   303→        new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.8, roughness: 0.2 })
+   304→      ));
+   305→      piston.rotation.z = Math.PI / 2;
+   306→      piston.position.set(wx, 24 + p * 0.8, -13);
+   307→      root.add(piston);
+   308→    }
+   309→    // Brake duct (carbon fiber scoop)
+   310→    const duct = addShadow(new THREE.Mesh(
+   311→      new THREE.BoxGeometry(1, 3, 2), carbonMat
+   312→    ));
+   313→    duct.position.set(wx, Y.frontWheels, -16);
+   314→    root.add(duct);
+   315→    // Wheel tether (safety cable)
+   316→    const tether = addShadow(new THREE.Mesh(
+   317→      new THREE.CylinderGeometry(0.08, 0.08, 4, 4),
+   318→      new THREE.MeshStandardMaterial({ color: 0xc02020, roughness: 0.7 })
+   319→    ));
+   320→    tether.rotation.z = Math.PI / 2;
+   321→    tether.position.set(wx, 24, -13);
+   322→    root.add(tether);
+   323→  }
+   324→
+   325→  // ============================================================
+   326→  // 4. FRONT SUSPENSION (Y=32)
+   327→  // ============================================================
+   328→  // Pushrod (torsion bar spring)
+   329→  const pushrod = addShadow(new THREE.Mesh(
+   330→    new THREE.CylinderGeometry(0.4, 0.4, 10, 8), suspensionMat
+   331→  ));
+   332→  pushrod.position.set(0, Y.frontSusp, -14);
+   333→  pushrod.rotation.x = Math.PI / 4;
+   334→  root.add(pushrod);
+   335→  // Pushrod end fittings
+   336→  for (const [px, py, pz] of [[0, 28, -16], [0, 36, -12]] as [number, number, number][]) {
+   337→    const fitting = addShadow(new THREE.Mesh(
+   338→      new THREE.SphereGeometry(0.5, 8, 6), titaniumMat
+   339→    ));
+   340→    fitting.position.set(px, py, pz);
+   341→    root.add(fitting);
+   342→  }
+   343→  // Upper wishbone (A-arm — 2 tubes forming a V)
+   344→  for (const wx of [-9, 9]) {
+   345→    for (const arm of [-1, 1]) {
+   346→      const wishbone = addShadow(new THREE.Mesh(
+   347→        new THREE.CylinderGeometry(0.25, 0.25, 8, 6), suspensionMat
+   348→      ));
+   349→      wishbone.position.set(wx * 0.5, Y.frontSusp, -14);
+   350→      wishbone.rotation.z = Math.PI / 2 + arm * 0.3;
+   351→      wishbone.rotation.x = 0.2;
+   352→      root.add(wishbone);
+   353→    }
+   354→    // Wishbone pickup points (rose joints)
+   355→    const joint = addShadow(new THREE.Mesh(
+   356→      new THREE.SphereGeometry(0.3, 6, 4), titaniumMat
+   357→    ));
+   358→    joint.position.set(wx, Y.frontSusp, -14);
+   359→    root.add(joint);
+   360→  }
+   361→  // Lower wishbone
+   362→  for (const wx of [-9, 9]) {
+   363→    for (const arm of [-1, 1]) {
+   364→      const wishbone = addShadow(new THREE.Mesh(
+   365→        new THREE.CylinderGeometry(0.25, 0.25, 7, 6), suspensionMat
+   366→      ));
+   367→      wishbone.position.set(wx * 0.5, Y.frontSusp - 2, -14);
+   368→      wishbone.rotation.z = Math.PI / 2 + arm * 0.25;
+   369→      wishbone.rotation.x = -0.2;
+   370→      root.add(wishbone);
+   371→    }
+   372→  }
+   373→  // Steering arm (track rod)
+   374→  const steerArm = addShadow(new THREE.Mesh(
+   375→    new THREE.CylinderGeometry(0.2, 0.2, 7, 6), suspensionMat
+   376→  ));
+   377→  steerArm.position.set(5, Y.frontSusp, -16);
+   378→  steerArm.rotation.z = -0.4;
+   379→  root.add(steerArm);
+   380→  // Steering rack
+   381→  const rack = addShadow(new THREE.Mesh(
+   382→    new THREE.BoxGeometry(8, 0.8, 0.8), suspensionMat
+   383→  ));
+   384→  rack.position.set(0, Y.frontSusp + 1, -15);
+   385→  root.add(rack);
+   386→  // Dampers (shock absorbers — 2x torsion bar covers)
+   387→  for (const dx of [-2, 2]) {
+   388→    const damper = addShadow(new THREE.Mesh(
+   389→      new THREE.CylinderGeometry(0.6, 0.6, 3, 8),
+   390→      new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.7, roughness: 0.3 })
+   391→    ));
+   392→    damper.position.set(dx, Y.frontSusp + 2, -13);
+   393→    damper.rotation.x = 0.3;
+   394→    root.add(damper);
+   395→  }
+   396→
+   397→  // ============================================================
+   398→  // 5. NOSE CONE (Y=42)
+   399→  // ============================================================
+   400→  // Main nose structure (tapered, sculpted)
+   401→  const nose = addShadow(new THREE.Mesh(
+   402→    new THREE.CylinderGeometry(0.8, 0.4, 8, 8), carbonMat
+   403→  ));
+   404→  nose.rotation.x = Math.PI / 2;
+   405→  nose.scale.set(1.5, 1, 1);
+   406→  nose.position.set(0, Y.nose, -20);
+   407→  root.add(nose);
+   408→  // Nose tip (crash structure — narrower tip)
+   409→  const noseTip = addShadow(new THREE.Mesh(
+   410→    new THREE.ConeGeometry(0.6, 3, 8), carbonMat
+   411→  ));
+   412→  noseTip.rotation.x = -Math.PI / 2;
+   413→  noseTip.scale.set(1.5, 1, 1);
+   414→  noseTip.position.set(0, Y.nose, -22.5);
+   415→  root.add(noseTip);
+   416→  // S-duct inlet (top of nose)
+   417→  const sduct = addShadow(new THREE.Mesh(
+   418→    new THREE.BoxGeometry(1, 0.5, 3), carbonMat
+   419→  ));
+   420→  sduct.position.set(0, Y.nose + 1, -18);
+   421→  root.add(sduct);
+   422→  // S-duct outlet (front of nose)
+   423→  const sductOut = addShadow(new THREE.Mesh(
+   424→    new THREE.BoxGeometry(0.8, 0.4, 1.5), carbonMat
+   425→  ));
+   426→  sductOut.position.set(0, Y.nose + 0.5, -22);
+   427→  root.add(sductOut);
+   428→  // Nose mounting pylons (connect to monocoque — 2x)
+   429→  for (const px of [-1.5, 1.5]) {
+   430→    const pylon = addShadow(new THREE.Mesh(
+   431→      new THREE.BoxGeometry(0.5, 3, 2), carbonMat
+   432→    ));
+   433→    pylon.position.set(px, Y.nose + 1, -17);
+   434→    root.add(pylon);
+   435→  }
+   436→  // Front number decal
+   437→  const numTex = decalTexture('7', '#1a1a1e', '#ffffff');
+   438→  const numDecal = addShadow(new THREE.Mesh(
+   439→    new THREE.PlaneGeometry(2, 1),
+   440→    new THREE.MeshStandardMaterial({ map: numTex, emissive: 0xffffff, emissiveMap: numTex, emissiveIntensity: 0.3 })
+   441→  ));
+   442→  numDecal.position.set(0, Y.nose + 1.5, -19);
+   443→  root.add(numDecal);
+   444→
+   445→  // ============================================================
+   446→  // 6. MONOCOQUE / CHASSIS (Y=52)
+   447→  // ============================================================
+   448→  // Main tub
+   449→  const mono = addShadow(new THREE.Mesh(
+   450→    new THREE.BoxGeometry(8, 5, 14), carbonMat
+   451→  ));
+   452→  mono.scale.set(1, 1, 1.2);
+   453→  mono.position.set(0, Y.mono, -8);
+   454→  root.add(mono);
+   455→  // Cockpit opening (recessed area)
+   456→  const cockpit = addShadow(new THREE.Mesh(
+   457→    new THREE.BoxGeometry(4, 3, 5),
+   458→    new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 })
+   459→  ));
+   460→  cockpit.position.set(0, Y.cockpit, -6);
+   461→  root.add(cockpit);
+   462→  // Front bulkhead
+   463→  const bulkhead = addShadow(new THREE.Mesh(
+   464→    new THREE.BoxGeometry(7, 4, 0.5), carbonMat
+   465→  ));
+   466→  bulkhead.position.set(0, Y.mono, -15);
+   467→  root.add(bulkhead);
+   468→  // Side impact spar (crash structure — 2x)
+   469→  for (const sx of [-4.5, 4.5]) {
+   470→    const spar = addShadow(new THREE.Mesh(
+   471→      new THREE.BoxGeometry(1, 2, 10), carbonMat
+   472→    ));
+   473→    spar.position.set(sx, Y.mono, -5);
+   474→    root.add(spar);
+   475→  }
+   476→  // Cockpit side padding (interior)
+   477→  for (const sx of [-2, 2]) {
+   478→    const pad = addShadow(new THREE.Mesh(
+   479→      new THREE.BoxGeometry(0.5, 2, 6),
+   480→      new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.8 })
+   481→    ));
+   482→    pad.position.set(sx, Y.cockpit, -6);
+   483→    root.add(pad);
+   484→  }
+   485→  // Front roll hoop (behind driver)
+   486→  const rollHoop = addShadow(new THREE.Mesh(
+   487→    new THREE.TorusGeometry(1, 0.2, 6, 12, Math.PI), titaniumMat
+   488→  ));
+   489→  rollHoop.position.set(0, Y.rollHoop, -3);
+   490→  rollHoop.rotation.x = -Math.PI / 2;
+   491→  root.add(rollHoop);
+   492→  // Roll hoop supports (2x)
+   493→  for (const rx of [-1, 1]) {
+   494→    const sup = addShadow(new THREE.Mesh(
+   495→      new THREE.BoxGeometry(0.3, 3, 0.3), titaniumMat
+   496→    ));
+   497→    sup.position.set(rx, Y.rollHoop - 1.5, -3);
+   498→    root.add(sup);
+   499→  }
+   500→  // Mirrors (2x)
+   501→  for (const mx of [-4, 4]) {
+   502→    const mirror = addShadow(new THREE.Mesh(
+   503→      new THREE.BoxGeometry(1.5, 1, 0.5),
+   504→      new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.3, roughness: 0.4 })
+   505→    ));
+   506→    mirror.position.set(mx, Y.mirrors, -8);
+   507→    root.add(mirror);
+   508→    // Mirror stalk
+   509→    const stalk = addShadow(new THREE.Mesh(
+   510→      new THREE.CylinderGeometry(0.15, 0.15, 2, 6), carbonMat
+   511→    ));
+   512→    stalk.rotation.z = Math.PI / 2;
+   513→    stalk.position.set(mx * 0.8, Y.mirrors, -8);
+   514→    root.add(stalk);
+   515→    // Mirror glass (reflective)
+   516→    const glass = addShadow(new THREE.Mesh(
+   517→      new THREE.PlaneGeometry(1.2, 0.7),
+   518→      new THREE.MeshStandardMaterial({ color: 0x4488cc, metalness: 0.9, roughness: 0.05 })
+   519→    ));
+   520→    glass.position.set(mx, Y.mirrors, -8.3);
+   521→    root.add(glass);
+   522→  }
+   523→
+   524→  // ============================================================
+   525→  // 7. SIDE PODS (Y=62) — 2x
+   526→  // ============================================================
+   527→  for (const sx of [-6, 6]) {
+   528→    // Pod body (sculpted shape)
+   529→    const pod = addShadow(new THREE.Mesh(
+   530→      new THREE.BoxGeometry(5, 4, 14), carbonMat
+   531→    ));
+   532→    pod.scale.set(1, 0.8, 1);
+   533→    pod.position.set(sx, Y.sidePods, 0);
+   534→    root.add(pod);
+   535→    // Radiator intake (front of pod)
+   536→    const intake = addShadow(new THREE.Mesh(
+   537→      new THREE.BoxGeometry(3, 3, 1), carbonMat
+   538→    ));
+   539→    intake.position.set(sx, Y.sidePods, -7);
+   540→    root.add(intake);
+   541→    // Radiator exhaust vent (top of pod — gills)
+   542→    for (let g = 0; g < 4; g++) {
+   543→      const gill = addShadow(new THREE.Mesh(
+   544→        new THREE.BoxGeometry(2.5, 0.3, 0.8), carbonMatFlat
+   545→      ));
+   546→      gill.position.set(sx, Y.sidePods + 3 - g * 0.6, 2 + g * 0.5);
+   547→      root.add(gill);
+   548→    }
+   549→    // Side pod turning vanes (underside aero)
+   550→    for (let v = 0; v < 3; v++) {
+   551→      const vane = addShadow(new THREE.Mesh(
+   552→        new THREE.BoxGeometry(0.2, 3, 3), carbonMat
+   553→      ));
+   554→      vane.position.set(sx, Y.sidePods - 2, -5 + v * 2);
+   555→      vane.rotation.y = 0.2;
+   556→      root.add(vane);
+   557→    }
+   558→    // Pod floor edge (downwash ramp)
+   559→    const ramp = addShadow(new THREE.Mesh(
+   560→      new THREE.BoxGeometry(1, 2, 10), carbonMat
+   561→    ));
+   562→    ramp.position.set(sx * 1.1, Y.sidePods - 1, 0);
+   563→    ramp.rotation.z = sx > 0 ? 0.3 : -0.3;
+   564→    root.add(ramp);
+   565→    // Brake duct scoop (front of pod, lower)
+   566→    const scoop = addShadow(new THREE.Mesh(
+   567→      new THREE.BoxGeometry(1.5, 1.5, 2), carbonMat
+   568→    ));
+   569→    scoop.position.set(sx, Y.sidePods - 2, -8);
+   570→    root.add(scoop);
+   571→  }
+   572→
+   573→  // ============================================================
+   574→  // 8. BARGEBOARDS (Y=62) — 2x (complex multi-element)
+   575→  // ============================================================
+   576→  for (const bx of [-4, 4]) {
+   577→    // Main bargeboard
+   578→    const barge = addShadow(new THREE.Mesh(
+   579→      new THREE.BoxGeometry(0.3, 5, 7), carbonMat
+   580→    ));
+   581→    barge.scale.set(1, 1, 0.7);
+   582→    barge.position.set(bx, Y.sidePods, -7);
+   583→    barge.rotation.y = 0.3;
+   584→    root.add(barge);
+   585→    // Secondary bargeboard (smaller, offset)
+   586→    const barge2 = addShadow(new THREE.Mesh(
+   587→      new THREE.BoxGeometry(0.2, 3, 5), carbonMat
+   588→    ));
+   589→    barge2.position.set(bx * 1.2, Y.sidePods, -6);
+   590→    barge2.rotation.y = 0.15;
+   591→    root.add(barge2);
+   592→    // Turning vane cluster (3 cascading vanes)
+   593→    for (let v = 0; v < 3; v++) {
+   594→      const vane = addShadow(new THREE.Mesh(
+   595→        new THREE.BoxGeometry(0.15, 2.5 - v * 0.5, 3 - v * 0.5), carbonMat
+   596→      ));
+   597→      vane.position.set(bx * 1.1, Y.bargeboards - 1 + v * 0.3, -8 + v * 0.5);
+   598→      vane.rotation.y = 0.4 - v * 0.1;
+   599→      root.add(vane);
+   600→    }
+   601→  }
+   602→
+   603→  // ============================================================
+   604→  // 9. ENGINE COVER + AIRBOX (Y=72)
+   605→  // ============================================================
+   606→  // Cover body
+   607→  const engCover = addShadow(new THREE.Mesh(
+   608→    new THREE.BoxGeometry(5, 4, 12), carbonMat
+   609→  ));
+   610→  engCover.scale.set(0.9, 1, 1.3);
+   611→  engCover.position.set(0, Y.engCover, 4);
+   612→  root.add(engCover);
+   613→  // Airbox (overhead intake — ram air scoop)
+   614→  const airbox = addShadow(new THREE.Mesh(
+   615→    new THREE.SphereGeometry(1.5, 12, 8), carbonMat
+   616→  ));
+   617→  airbox.scale.set(1.5, 1, 1);
+   618→  airbox.position.set(0, Y.engCover + 3, -2);
+   619→  root.add(airbox);
+   620→  // Airbox intake opening (front face)
+   621→  const airboxOpen = addShadow(new THREE.Mesh(
+   622→    new THREE.CircleGeometry(0.8, 12),
+   623→    new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 })
+   624→  ));
+   625→  airboxOpen.position.set(0, Y.engCover + 3, -3.5);
+   626→  root.add(airboxOpen);
+   627→  // Shark fin (engine cover spine)
+   628→  const fin = addShadow(new THREE.Mesh(
+   629→    new THREE.BoxGeometry(0.4, 3, 10), carbonMat
+   630→  ));
+   631→  fin.position.set(0, Y.engCover + 4, 5);
+   632→  root.add(fin);
+   633→  // Engine cover side panels (cooling louvers — 3 per side)
+   634→  for (const lx of [-2, 2]) {
+   635→    for (let l = 0; l < 3; l++) {
+   636→      const louver = addShadow(new THREE.Mesh(
+   637→        new THREE.BoxGeometry(0.2, 0.4, 2), carbonMatFlat
+   638→      ));
+   639→      louver.position.set(lx, Y.engCover + 1 - l * 0.8, 6);
+   640→      root.add(louver);
+   641→    }
+   642→  }
+   643→
+   644→  // ============================================================
+   645→  // 10. POWER UNIT — V6 TURBO HYBRID (Y=82)
+   646→  // ============================================================
+   647→  // Engine block
+   648→  const engineBlock = addShadow(new THREE.Mesh(
+   649→    new THREE.BoxGeometry(4, 4, 6), engineMat
+   650→  ));
+   651→  engineBlock.position.set(0, Y.powerUnit, 3);
+   652→  root.add(engineBlock);
+   653→  // V-cylinder banks (2 rows of 3)
+   654→  for (const side of [-1, 1]) {
+   655→    for (let c = 0; c < 3; c++) {
+   656→      // Cylinder head
+   657→      const cyl = addShadow(new THREE.Mesh(
+   658→        new THREE.CylinderGeometry(0.6, 0.6, 3, 8), engineMat
+   659→      ));
+   660→      cyl.position.set(side * 1.2, Y.powerUnit + 2, 1 + c * 2);
+   661→      cyl.rotation.z = side * 0.5;
+   662→      root.add(cyl);
+   663→      // Cylinder head cover (colored — team livery)
+   664→      const headCover = addShadow(new THREE.Mesh(
+   665→        new THREE.CylinderGeometry(0.65, 0.65, 1, 8), accentRedMat
+   666→      ));
+   667→      headCover.position.set(side * 1.3, Y.powerUnit + 3.5, 1 + c * 2);
+   668→      headCover.rotation.z = side * 0.5;
+   669→      root.add(headCover);
+   670→      // Spark plug (top of each cylinder)
+   671→      const plug = addShadow(new THREE.Mesh(
+   672→        new THREE.CylinderGeometry(0.1, 0.1, 0.5, 6),
+   673→        new THREE.MeshStandardMaterial({ color: 0xc0c0c8, metalness: 0.9, roughness: 0.1 })
+   674→      ));
+   675→      plug.position.set(side * 1.5, Y.powerUnit + 4, 1 + c * 2);
+   676→      plug.rotation.z = side * 0.5;
+   677→      root.add(plug);
+   678→    }
+   679→  }
+   680→  // Turbo compressor housing
+   681→  const turbo = addShadow(new THREE.Mesh(
+   682→    new THREE.CylinderGeometry(0.8, 0.8, 2, 12), goldMat
+   683→  ));
+   684→  turbo.rotation.z = Math.PI / 2;
+   685→  turbo.position.set(2, Y.powerUnit + 3, 6);
+   686→  root.add(turbo);
+   687→  // Turbo turbine housing (hot side)
+   688→  const turbine = addShadow(new THREE.Mesh(
+   689→    new THREE.CylinderGeometry(0.6, 0.6, 1.5, 8),
+   690→    new THREE.MeshStandardMaterial({ color: 0x8a4a2a, metalness: 0.7, roughness: 0.3 })
+   691→  ));
+   692→  turbine.rotation.z = Math.PI / 2;
+   693→  turbine.position.set(2, Y.powerUnit + 3, 8);
+   694→  root.add(turbine);
+   695→  // Intercooler (between turbo and intake)
+   696→  const intercooler = addShadow(new THREE.Mesh(
+   697→    new THREE.BoxGeometry(2, 3, 1),
+   698→    new THREE.MeshStandardMaterial({ color: 0x4a8aaa, metalness: 0.5, roughness: 0.4 })
+   699→  ));
+   700→  intercooler.position.set(0, Y.powerUnit + 4, 5);
+   701→  root.add(intercooler);
+   702→  // MGU-K (kinetic energy recovery — attached to crankshaft)
+   703→  const mguK = addShadow(new THREE.Mesh(
+   704→    new THREE.CylinderGeometry(0.7, 0.7, 2, 8), accentBlueMat
+   705→  ));
+   706→  mguK.rotation.z = Math.PI / 2;
+   707→  mguK.position.set(-2, Y.powerUnit + 1, 6);
+   708→  root.add(mguK);
+   709→  // MGU-H (heat energy recovery — attached to turbo)
+   710→  const mguH = addShadow(new THREE.Mesh(
+   711→    new THREE.CylinderGeometry(0.4, 0.4, 1.5, 8), accentBlueMat
+   712→  ));
+   713→  mguH.rotation.z = Math.PI / 2;
+   714→  mguH.position.set(2, Y.powerUnit + 4, 7);
+   715→  root.add(mguH);
+   716→  // ERS battery pack (energy store)
+   717→  const battery = addShadow(new THREE.Mesh(
+   718→    new THREE.BoxGeometry(3, 2, 4),
+   719→    new THREE.MeshStandardMaterial({ color: 0x2a4a2a, metalness: 0.3, roughness: 0.5 })
+   720→  ));
+   721→  battery.position.set(0, Y.powerUnit - 2, 4);
+   722→  root.add(battery);
+   723→  // Control electronics (ECU)
+   724→  const ecu = addShadow(new THREE.Mesh(
+   725→    new THREE.BoxGeometry(2, 1, 1.5),
+   726→    new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.4, roughness: 0.5 })
+   727→  ));
+   728→  ecu.position.set(-2, Y.powerUnit - 1, 2);
+   729→  root.add(ecu);
+   730→  // Exhaust manifold (4-2-1 merging pipes)
+   731→  for (let m = 0; m < 4; m++) {
+   732→    const manifold = addShadow(new THREE.Mesh(
+   733→      new THREE.CylinderGeometry(0.25, 0.35, 4, 6),
+   734→      new THREE.MeshStandardMaterial({ color: 0x8a5a3a, metalness: 0.7, roughness: 0.3 })
+   735→    ));
+   736→    manifold.rotation.x = -0.5;
+   737→    manifold.rotation.z = (m - 1.5) * 0.2;
+   738→    manifold.position.set(m * 0.8 - 1.2, Y.powerUnit + 3, 7);
+   739→    root.add(manifold);
+   740→  }
+   741→  // Fuel line (braided hose)
+   742→  const fuelLine = addShadow(new THREE.Mesh(
+   743→    new THREE.CylinderGeometry(0.15, 0.15, 6, 6),
+   744→    new THREE.MeshStandardMaterial({ color: 0xc02020, metalness: 0.3, roughness: 0.5 })
+   745→  ));
+   746→  fuelLine.position.set(-2, Y.powerUnit, 0);
+   747→  fuelLine.rotation.x = Math.PI / 2;
+   748→  root.add(fuelLine);
+   749→
+   750→  // ============================================================
+   751→  // 11. EXHAUST PIPE (Y=88)
+   752→  // ============================================================
+   753→  const exhaust = addShadow(new THREE.Mesh(
+   754→    new THREE.CylinderGeometry(0.4, 0.5, 5, 8),
+   755→    new THREE.MeshStandardMaterial({ color: 0xc0a080, metalness: 0.9, roughness: 0.1 })
+   756→  ));
+   757→  exhaust.rotation.x = -0.3;
+   758→  exhaust.position.set(0, Y.exhaust, 8);
+   759→  root.add(exhaust);
+   760→  // Exhaust tip (rolled edge)
+   761→  const tip = addShadow(new THREE.Mesh(
+   762→    new THREE.TorusGeometry(0.5, 0.1, 6, 12),
+   763→    new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.8, roughness: 0.2 })
+   764→  ));
+   765→  tip.position.set(0, Y.exhaust + 1.3, 9.8);
+   766→  tip.rotation.x = -0.3;
+   767→  root.add(tip);
+   768→  // Heat shield
+   769→  const heatShield = addShadow(new THREE.Mesh(
+   770→    new THREE.BoxGeometry(2, 2, 4),
+   771→    new THREE.MeshStandardMaterial({ color: 0xc0a080, metalness: 0.9, roughness: 0.1 })
+   772→  ));
+   773→  heatShield.position.set(0, Y.exhaust, 7);
+   774→  root.add(heatShield);
+   775→
+   776→  // ============================================================
+   777→  // 12. REAR SUSPENSION (Y=92)
+   778→  // ============================================================
+   779→  for (const rx of [-9, 9]) {
+   780→    // Lower wishbone (2 arms forming V)
+   781→    for (const arm of [-1, 1]) {
+   782→      const lower = addShadow(new THREE.Mesh(
+   783→        new THREE.CylinderGeometry(0.3, 0.3, 8, 6), suspensionMat
+   784→      ));
+   785→      lower.position.set(rx * 0.5, Y.rearSusp, 8);
+   786→      lower.rotation.z = Math.PI / 2 + arm * 0.3;
+   787→      root.add(lower);
+   788→    }
+   789→    // Upper wishbone
+   790→    for (const arm of [-1, 1]) {
+   791→      const upper = addShadow(new THREE.Mesh(
+   792→        new THREE.CylinderGeometry(0.3, 0.3, 7, 6), suspensionMat
+   793→      ));
+   794→      upper.position.set(rx * 0.5, Y.rearSusp + 2, 8);
+   795→      upper.rotation.z = Math.PI / 2 + arm * 0.25;
+   796→      root.add(upper);
+   797→    }
+   798→    // Driveshaft (CV joint to wheel)
+   799→    const drive = addShadow(new THREE.Mesh(
+   800→      new THREE.CylinderGeometry(0.5, 0.5, 5, 8), suspensionMat
+   801→    ));
+   802→    drive.rotation.z = Math.PI / 2;
+   803→    drive.position.set(rx * 0.7, Y.rearSusp, 10);
+   804→    root.add(drive);
+   805→    // Driveshaft CV joints (2x — inner and outer)
+   806→    for (const cz of [8, 11]) {
+   807→      const cv = addShadow(new THREE.Mesh(
+   808→        new THREE.SphereGeometry(0.6, 8, 6), titaniumMat
+   809→      ));
+   810→      cv.position.set(rx * 0.7, Y.rearSusp, cz);
+   811→      root.add(cv);
+   812→    }
+   813→    // Pullrod (alternative to pushrod — rear uses pullrod)
+   814→    const pullrod = addShadow(new THREE.Mesh(
+   815→      new THREE.CylinderGeometry(0.35, 0.35, 8, 8), suspensionMat
+   816→    ));
+   817→    pullrod.position.set(rx * 0.5, Y.rearSusp + 1, 7);
+   818→    pullrod.rotation.x = -0.5;
+   819→    root.add(pullrod);
+   820→    // Pickup point (rose joint)
+   821→    const joint = addShadow(new THREE.Mesh(
+   822→      new THREE.SphereGeometry(0.3, 6, 4), titaniumMat
+   823→    ));
+   824→    joint.position.set(rx, Y.rearSusp, 10);
+   825→    root.add(joint);
+   826→  }
+   827→  // Rear dampers (2x)
+   828→  for (const dx of [-2, 2]) {
+   829→    const damper = addShadow(new THREE.Mesh(
+   830→      new THREE.CylinderGeometry(0.6, 0.6, 3, 8),
+   831→      new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.7, roughness: 0.3 })
+   832→    ));
+   833→    damper.position.set(dx, Y.rearSusp + 2, 6);
+   834→    damper.rotation.x = -0.4;
+   835→    root.add(damper);
+   836→  }
+   837→
+   838→  // ============================================================
+   839→  // 13. REAR WHEELS (Y=92) — 2x (larger than front)
+   840→  // ============================================================
+   841→  for (const wx of [-9, 9]) {
+   842→    // Tire (wider than front)
+   843→    const tire = addShadow(new THREE.Mesh(
+   844→      new THREE.TorusGeometry(3.8, 1.8, 16, 24), tireMat
+   845→    ));
+   846→    tire.rotation.y = Math.PI / 2;
+   847→    tire.position.set(wx, Y.rearSusp, 10);
+   848→    root.add(tire);
+   849→    // Tire inner
+   850→    const tireInner = addShadow(new THREE.Mesh(
+   851→      new THREE.CylinderGeometry(2.2, 2.2, 3, 16), tireMat
+   852→    ));
+   853→    tireInner.rotation.z = Math.PI / 2;
+   854→    tireInner.position.set(wx, Y.rearSusp, 10);
+   855→    root.add(tireInner);
+   856→    // Rim (larger)
+   857→    const rim = addShadow(new THREE.Mesh(
+   858→      new THREE.CylinderGeometry(2.7, 2.7, 2.5, 16), rimMat
+   859→    ));
+   860→    rim.rotation.z = Math.PI / 2;
+   861→    rim.position.set(wx, Y.rearSusp, 10);
+   862→    root.add(rim);
+   863→    // Rim spokes (8x)
+   864→    for (let sp = 0; sp < 8; sp++) {
+   865→      const spoke = addShadow(new THREE.Mesh(
+   866→        new THREE.BoxGeometry(2, 0.3, 0.3), rimMat
+   867→      ));
+   868→      spoke.position.set(wx, Y.rearSusp, 10);
+   869→      spoke.rotation.z = (sp / 8) * Math.PI * 2;
+   870→      root.add(spoke);
+   871→    }
+   872→    // Wheel nut
+   873→    const nut = addShadow(new THREE.Mesh(
+   874→      new THREE.CylinderGeometry(0.5, 0.5, 0.8, 6),
+   875→      new THREE.MeshStandardMaterial({ color: 0xc02020, metalness: 0.6, roughness: 0.3 })
+   876→    ));
+   877→    nut.rotation.z = Math.PI / 2;
+   878→    nut.position.set(wx, Y.rearSusp, 10);
+   879→    root.add(nut);
+   880→    // Brake disc (larger)
+   881→    const brake = addShadow(new THREE.Mesh(
+   882→      new THREE.CylinderGeometry(2.8, 2.8, 0.5, 16), brakeDiscMat
+   883→    ));
+   884→    brake.rotation.z = Math.PI / 2;
+   885→    brake.position.set(wx, Y.rearSusp, 10);
+   886→    root.add(brake);
+   887→    // Brake disc cooling vanes (16x)
+   888→    for (let v = 0; v < 16; v++) {
+   889→      const vane = addShadow(new THREE.Mesh(
+   890→        new THREE.BoxGeometry(2, 0.12, 0.3), brakeMat
+   891→      ));
+   892→      vane.position.set(wx, Y.rearSusp, 10);
+   893→      vane.rotation.z = (v / 16) * Math.PI * 2;
+   894→      root.add(vane);
+   895→    }
+   896→    // Brake caliper
+   897→    const caliper = addShadow(new THREE.Mesh(
+   898→      new THREE.BoxGeometry(2.5, 2, 2), accentRedMat
+   899→    ));
+   900→    caliper.position.set(wx, Y.rearWheels + 3, 10);
+   901→    root.add(caliper);
+   902→    // Caliper pistons (3x)
+   903→    for (let p = 0; p < 3; p++) {
+   904→      const piston = addShadow(new THREE.Mesh(
+   905→        new THREE.CylinderGeometry(0.25, 0.25, 0.3, 8),
+   906→        new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.8, roughness: 0.2 })
+   907→      ));
+   908→      piston.rotation.z = Math.PI / 2;
+   909→      piston.position.set(wx, Y.rearWheels + 2 + p * 0.8, 9);
+   910→      root.add(piston);
+   911→    }
+   912→    // Wheel tether
+   913→    const tether = addShadow(new THREE.Mesh(
+   914→      new THREE.CylinderGeometry(0.08, 0.08, 4, 4),
+   915→      new THREE.MeshStandardMaterial({ color: 0xc02020, roughness: 0.7 })
+   916→    ));
+   917→    tether.rotation.z = Math.PI / 2;
+   918→    tether.position.set(wx, Y.rearWheels + 2, 9);
+   919→    root.add(tether);
+   920→  }
+   921→
+   922→  // ============================================================
+   923→  // 14. REAR WING ASSEMBLY (Y=102)
+   924→  // ============================================================
+   925→  const rwY = Y.rearWing;
+   926→  // Mainplane
+   927→  const rwMain = addShadow(new THREE.Mesh(
+   928→    new THREE.BoxGeometry(18, 0.5, 4), carbonMat
+   929→  ));
+   930→  rwMain.position.set(0, rwY, 12);
+   931→  root.add(rwMain);
+   932→  // Beam wing (lower element)
+   933→  const rwBeam = addShadow(new THREE.Mesh(
+   934→    new THREE.BoxGeometry(16, 0.4, 2), carbonMat
+   935→  ));
+   936→  rwBeam.position.set(0, rwY - 1, 13);
+   937→  root.add(rwBeam);
+   938→  // Upper flap
+   939→  const rwFlap = addShadow(new THREE.Mesh(
+   940→    new THREE.BoxGeometry(18, 0.4, 2), carbonMat
+   941→  ));
+   942→  rwFlap.position.set(0, rwY + 1.5, 11);
+   943→  root.add(rwFlap);
+   944→  // DRS flap (top element — opens for drag reduction)
+   945→  const drs = addShadow(new THREE.Mesh(
+   946→    new THREE.BoxGeometry(16, 0.3, 1.5), accentGreenMat
+   947→  ));
+   948→  drs.position.set(0, rwY + 3, 10.5);
+   949→  root.add(drs);
+   950→  // DRS mechanism (actuator — small cylinder connecting flap to mainplane)
+   951→  const drsAct = addShadow(new THREE.Mesh(
+   952→    new THREE.CylinderGeometry(0.2, 0.2, 2.5, 6),
+   953→    new THREE.MeshStandardMaterial({ color: 0x8a8a92, metalness: 0.7, roughness: 0.3 })
+   954→  ));
+   955→  drsAct.position.set(0, rwY + 2, 11.5);
+   956→  root.add(drsAct);
+   957→  // Endplates (2x — tall with louvers)
+   958→  for (const ex of [-9, 9]) {
+   959→    const ep = addShadow(new THREE.Mesh(
+   960→      new THREE.BoxGeometry(0.5, 5, 4), carbonMat
+   961→    ));
+   962→    ep.position.set(ex, rwY + 1, 11.5);
+   963→    root.add(ep);
+   964→    // Endplate louvers (3 horizontal slots)
+   965→    for (let l = 0; l < 3; l++) {
+   966→      const louver = addShadow(new THREE.Mesh(
+   967→        new THREE.BoxGeometry(0.6, 0.3, 1.5), carbonMatFlat
+   968→      ));
+   969→      louver.position.set(ex, rwY + 0.5 + l * 0.8, 13);
+   970→      root.add(louver);
+   971→    }
+   972→    // Endplate top winglet
+   973→    const winglet = addShadow(new THREE.Mesh(
+   974→      new THREE.BoxGeometry(0.4, 1.5, 2), carbonMat
+   975→    ));
+   976→    winglet.position.set(ex, rwY + 4, 12);
+   977→    winglet.rotation.y = 0.2;
+   978→    root.add(winglet);
+   979→  }
+   980→  // Rear wing pillars (2x — connect to gearbox)
+   981→  for (const px of [-3, 3]) {
+   982→    const pillar = addShadow(new THREE.Mesh(
+   983→      new THREE.CylinderGeometry(0.3, 0.3, 5, 6), carbonMat
+   984→    ));
+   985→    pillar.position.set(px, rwY - 2.5, 12);
+   986→    root.add(pillar);
+   987→  }
+   988→  // Rear wing slot gap separators (small vertical tabs on mainplane)
+   989→  for (let s = -7; s <= 7; s += 2) {
+   990→    const sep = addShadow(new THREE.Mesh(
+   991→      new THREE.BoxGeometry(0.2, 0.8, 0.2), carbonMatFlat
+   992→    ));
+   993→    sep.position.set(s, rwY + 1, 10.8);
+   994→    root.add(sep);
+   995→  }
+   996→
+   997→  // ============================================================
+   998→  // 15. T-WING (Y=112)
+   999→  // ============================================================
+  1000→  // Main T-wing element
+  1001→  const twing = addShadow(new THREE.Mesh(
+  1002→    new THREE.BoxGeometry(14, 0.3, 1.5), carbonMat
+  1003→  ));
+  1004→  twing.position.set(0, Y.tWing, 11);
+  1005→  root.add(twing);
+  1006→  // Secondary T-wing element (bi-plane)
+  1007→  const twing2 = addShadow(new THREE.Mesh(
+  1008→    new THREE.BoxGeometry(12, 0.2, 1), carbonMat
+  1009→  ));
+  1010→  twing2.position.set(0, Y.tWing - 1, 11.5);
+  1011→  root.add(twing2);
+  1012→  // T-wing endplates
+  1013→  for (const ex of [-7, 7]) {
+  1014→    const tep = addShadow(new THREE.Mesh(
+  1015→      new THREE.BoxGeometry(0.3, 2, 1.5), carbonMat
+  1016→    ));
+  1017→    tep.position.set(ex, Y.tWing + 0.5, 11);
+  1018→    root.add(tep);
+  1019→  }
+  1020→  // Rear wing support struts (connect T-wing to rear wing)
+  1021→  for (const sx of [-4, 4]) {
+  1022→    const strut = addShadow(new THREE.Mesh(
+  1023→      new THREE.BoxGeometry(0.3, 6, 0.3), carbonMat
+  1024→    ));
+  1025→    strut.position.set(sx, Y.tWing - 5, 11);
+  1026→    root.add(strut);
+  1027→  }
+  1028→
+  1029→  // ============================================================
+  1030→  // 16. HALO + COCKPIT INTERIOR (Y=52, at monocoque level)
+  1031→  // ============================================================
+  1032→  // Halo base mounts (2x — titanium)
+  1033→  for (const hx of [-2, 2]) {
+  1034→    const base = addShadow(new THREE.Mesh(
+  1035→      new THREE.BoxGeometry(1, 1, 2), titaniumMat
+  1036→    ));
+  1037→    base.position.set(hx, Y.mirrors, -8);
+  1038→    root.add(base);
+  1039→  }
+  1040→  // Halo main arc (titanium tube — half torus)
+  1041→  const haloArc = addShadow(new THREE.Mesh(
+  1042→    new THREE.TorusGeometry(2.5, 0.35, 8, 16, Math.PI), titaniumMat
+  1043→  ));
+  1044→  haloArc.position.set(0, Y.mirrors, -8);
+  1045→  haloArc.rotation.x = -Math.PI / 2;
+  1046→  root.add(haloArc);
+  1047→  // Halo central strut (front support)
+  1048→  const haloStrut = addShadow(new THREE.Mesh(
+  1049→    new THREE.BoxGeometry(0.35, 2.5, 0.35), titaniumMat
+  1050→  ));
+  1051→  haloStrut.position.set(0, Y.halo + 1, -7);
+  1052→  root.add(haloStrut);
+  1053→  // Halo side rails (connect arc to cockpit rim — 2x)
+  1054→  for (const sx of [-2.5, 2.5]) {
+  1055→    const rail = addShadow(new THREE.Mesh(
+  1056→      new THREE.CylinderGeometry(0.15, 0.15, 3, 6), titaniumMat
+  1057→    ));
+  1058→    rail.position.set(sx, Y.halo + 0.5, -6);
+  1059→    rail.rotation.x = 0.5;
+  1060→    root.add(rail);
+  1061→  }
+  1062→  // Cockpit padding (rim — energy-absorbing)
+  1063→  const padding = addShadow(new THREE.Mesh(
+  1064→    new THREE.TorusGeometry(2, 0.3, 6, 12),
+  1065→    new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.8 })
+  1066→  ));
+  1067→  padding.position.set(0, Y.steering, -6);
+  1068→  padding.rotation.x = -Math.PI / 2;
+  1069→  root.add(padding);
+  1070→
+  1071→  // Steering wheel (F1 rectangular shape with grips and buttons)
+  1072→  const wheelGroup = new THREE.Group();
+  1073→  // Wheel body (rectangular F1 shape — open top)
+  1074→  const wheelBody = addShadow(new THREE.Mesh(
+  1075→    new THREE.CylinderGeometry(1.5, 1.5, 0.5, 16, 1, false, 0, Math.PI * 1.3),
+  1076→    new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.3, roughness: 0.5 })
+  1077→  ));
+  1078→  wheelBody.rotation.x = Math.PI / 2;
+  1079→  wheelGroup.add(wheelBody);
+  1080→  // LCD display (center screen — green)
+  1081→  const lcd = addShadow(new THREE.Mesh(
+  1082→    new THREE.PlaneGeometry(1.8, 1),
+  1083→    new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.6 })
+  1084→  ));
+  1085→  lcd.position.set(0, 0.1, 0);
+  1086→  wheelGroup.add(lcd);
+  1087→  // Buttons (4 colored buttons around the screen)
+  1088→  const buttonColors = [0xc02020, 0x00a060, 0x2040c0, 0xc0a020];
+  1089→  for (let b = 0; b < 4; b++) {
+  1090→    const bx = -0.9 + (b % 2) * 1.8;
+  1091→    const by = -0.7 + Math.floor(b / 2) * 1.4;
+  1092→    const btn = addShadow(new THREE.Mesh(
+  1093→      new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8),
+  1094→      new THREE.MeshStandardMaterial({ color: buttonColors[b], emissive: buttonColors[b], emissiveIntensity: 0.3 })
+  1095→    ));
+  1096→    btn.position.set(bx, 0.15, by);
+  1097→    wheelGroup.add(btn);
+  1098→  }
+  1099→  // Grip handles (left + right)
+  1100→  for (const gx of [-1.5, 1.5]) {
+  1101→    const grip = addShadow(new THREE.Mesh(
+  1102→      new THREE.CylinderGeometry(0.2, 0.2, 1.5, 8),
+  1103→      new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.6 })
+  1104→    ));
+  1105→    grip.rotation.z = Math.PI / 2;
+  1106→    grip.position.set(gx, 0, 0);
+  1107→    wheelGroup.add(grip);
+  1108→    // Paddle shifter (behind grip)
+  1109→    const paddle = addShadow(new THREE.Mesh(
+  1110→      new THREE.BoxGeometry(0.8, 0.1, 0.5),
+  1111→      new THREE.MeshStandardMaterial({ color: 0x4a4a52, metalness: 0.6, roughness: 0.3 })
+  1112→    ));
+  1113→    paddle.position.set(gx, -0.3, 0.3);
+  1114→    wheelGroup.add(paddle);
+  1115→  }
+  1116→  // Quick-release hub (center back)
+  1117→  const hub = addShadow(new THREE.Mesh(
+  1118→    new THREE.CylinderGeometry(0.3, 0.3, 0.8, 8),
+  1119→    new THREE.MeshStandardMaterial({ color: 0xc02020, metalness: 0.5, roughness: 0.3 })
+  1120→  ));
+  1121→  hub.position.set(0, -0.3, 0);
+  1122→  wheelGroup.add(hub);
+  1123→  wheelGroup.position.set(0, Y.steering, -4);
+  1124→  root.add(wheelGroup);
+  1125→
+  1126→  // Driver seat (molded carbon fiber)
+  1127→  const seat = addShadow(new THREE.Mesh(
+  1128→    new THREE.BoxGeometry(3, 3, 4), seatMat
+  1129→  ));
+  1130→  seat.scale.set(0.8, 1, 1);
+  1131→  seat.position.set(0, Y.mono, -3);
+  1132→  root.add(seat);
+  1133→  // Seat shoulder wings (2x — help direct airflow)
+  1134→  for (const sx of [-1.5, 1.5]) {
+  1135→    const shoulder = addShadow(new THREE.Mesh(
+  1136→      new THREE.BoxGeometry(0.8, 2.5, 3), seatMat
+  1137→    ));
+  1138→    shoulder.position.set(sx, Y.headrest - 0.5, -3);
+  1139→    root.add(shoulder);
+  1140→  }
+  1141→  // Headrest (2 side pads + center)
+  1142→  for (const hx of [-1.2, 0, 1.2]) {
+  1143→    const headrest = addShadow(new THREE.Mesh(
+  1144→      new THREE.BoxGeometry(hx === 0 ? 1.2 : 0.8, 2.5, 3), seatMat
+  1145→    ));
+  1146→    headrest.position.set(hx, Y.rollHoop, -3);
+  1147→    root.add(headrest);
+  1148→  }
+  1149→  // HANS device (head and neck support — visible behind driver)
+  1150→  const hans = addShadow(new THREE.Mesh(
+  1151→    new THREE.TorusGeometry(1.5, 0.3, 4, 8, Math.PI),
+  1152→    new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.7 })
+  1153→  ));
+  1154→  hans.position.set(0, Y.hans, -5);
+  1155→  hans.rotation.x = Math.PI;
+  1156→  root.add(hans);
+  1157→
+  1158→  // ============================================================
+  1159→  // LIGHTING
+  1160→  // ============================================================
+  1161→  const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+  1162→  sun.position.set(20, exploded ? 80 : 30, 30);
+  1163→  sun.castShadow = true;
+  1164→  sun.shadow.mapSize.width = 2048;
+  1165→  sun.shadow.mapSize.height = 2048;
+  1166→  sun.shadow.camera.left = -50;
+  1167→  sun.shadow.camera.right = 50;
+  1168→  sun.shadow.camera.top = exploded ? 120 : 20;
+  1169→  sun.shadow.camera.bottom = -5;
+  1170→  sun.shadow.camera.near = 1;
+  1171→  sun.shadow.camera.far = 200;
+  1172→  sun.shadow.bias = -0.0005;
+  1173→  root.add(sun);
+  1174→
+  1175→  const hemi = new THREE.HemisphereLight(0xccddff, 0x445566, 0.5);
+  1176→  root.add(hemi);
+  1177→  const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+  1178→  root.add(ambient);
+  1179→  const rim = new THREE.DirectionalLight(0xff6080, 0.4);
+  1180→  rim.position.set(-30, 50, -20);
+  1181→  root.add(rim);
+  1182→
+  1183→  return root;
+  1184→}
+  1185→

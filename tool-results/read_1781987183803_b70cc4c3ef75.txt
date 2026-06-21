@@ -1,0 +1,2002 @@
+     1→// Detailed CAD model generators using Three.js
+     2→// Each model is procedurally generated with realistic engineering details
+     3→
+     4→import * as THREE from 'three';
+     5→import type { Feature } from '@/lib/cad/types';
+     6→// Super-detailed 5-axis CNC machine parts (14 component parts)
+     7→import {
+     8→  createCNCMachineBedGeometry,
+     9→  createXAxisSaddleGeometry,
+    10→  createCNCColumnGeometry2,
+    11→  createSpindleCarriageGeometry,
+    12→  createSpindleMotorGeometry,
+    13→  createBAxisTrunnionGeometry,
+    14→  createCAxisTableGeometry,
+    15→  createATCMagazineGeometry,
+    16→  createATCArmGeometry,
+    17→  createCoolantSystemGeometry,
+    18→  createControlCabinetGeometry,
+    19→  createToolHolderGeometry,
+    20→  createChipConveyorGeometry,
+    21→  createWorkpieceGeometry,
+    22→} from './cnc-machine';
+    23→// Mega CNC Machine - one massive super-detailed part containing the entire machine
+    24→import { createMegaCNCMachineGeometry } from './mega-cnc';
+    25→// Chinese 3-story building
+    26→import { createChineseBuildingGeometry } from './chinese-building';
+    27→// LA Hills Mansion
+    28→import { createLAMansionGeometry } from './la-mansion';
+    29→// Great Pyramid of Giza
+    30→import { createPyramidGeometry } from './pyramid';
+    31→
+    32→// Material helpers
+    33→export function metal(color: number, metalness = 0.9, roughness = 0.2): THREE.MeshStandardMaterial {
+    34→  return new THREE.MeshStandardMaterial({ color, metalness, roughness });
+    35→}
+    36→export function steel(): THREE.MeshStandardMaterial {
+    37→  return metal(0x6b7280, 0.92, 0.18);
+    38→}
+    39→export function stainless(): THREE.MeshStandardMaterial {
+    40→  return metal(0xb8bcc4, 0.95, 0.12);
+    41→}
+    42→export function aluminum(): THREE.MeshStandardMaterial {
+    43→  return metal(0x9aa3b0, 0.7, 0.35);
+    44→}
+    45→export function darkSteel(): THREE.MeshStandardMaterial {
+    46→  return metal(0x3a3f47, 0.88, 0.25);
+    47→}
+    48→export function brass(): THREE.MeshStandardMaterial {
+    49→  return metal(0xc09545, 0.9, 0.3);
+    50→}
+    51→export function rubber(): THREE.MeshStandardMaterial {
+    52→  return new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.1, roughness: 0.9 });
+    53→}
+    54→export function plastic(color = 0x2a2a2a): THREE.MeshStandardMaterial {
+    55→  return new THREE.MeshStandardMaterial({ color, metalness: 0.05, roughness: 0.6 });
+    56→}
+    57→
+    58→function addShadow(mesh: THREE.Mesh) {
+    59→  mesh.castShadow = true;
+    60→  mesh.receiveShadow = true;
+    61→  return mesh;
+    62→}
+    63→
+    64→// ====================== GEARBOX HOUSING (detailed) ======================
+    65→export function createGearboxHousingGeometry(features: Feature[]): THREE.Group {
+    66→  const group = new THREE.Group();
+    67→  const mat = aluminum();
+    68→  const darkMat = darkSteel();
+    69→
+    70→  const w = 120, h = 80, d = 60;
+    71→  const wallT = 6;
+    72→
+    73→  // --- Main body with rounded corners using shape extrusion ---
+    74→  const bodyShape = new THREE.Shape();
+    75→  const r = 8; // outer corner radius
+    76→  bodyShape.moveTo(-w/2 + r, -h/2);
+    77→  bodyShape.lineTo(w/2 - r, -h/2);
+    78→  bodyShape.quadraticCurveTo(w/2, -h/2, w/2, -h/2 + r);
+    79→  bodyShape.lineTo(w/2, h/2 - r);
+    80→  bodyShape.quadraticCurveTo(w/2, h/2, w/2 - r, h/2);
+    81→  bodyShape.lineTo(-w/2 + r, h/2);
+    82→  bodyShape.quadraticCurveTo(-w/2, h/2, -w/2, h/2 - r);
+    83→  bodyShape.lineTo(-w/2, -h/2 + r);
+    84→  bodyShape.quadraticCurveTo(-w/2, -h/2, -w/2 + r, -h/2);
+    85→
+    86→  const bodyGeom = new THREE.ExtrudeGeometry(bodyShape, {
+    87→    depth: d, bevelEnabled: true, bevelThickness: 2, bevelSize: 2, bevelSegments: 4,
+    88→  });
+    89→  bodyGeom.center();
+    90→  const body = addShadow(new THREE.Mesh(bodyGeom, mat));
+    91→  group.add(body);
+    92→
+    93→  // --- Internal cavity (visualized as dark inset) ---
+    94→  const cavityShape = new THREE.Shape();
+    95→  const ir = r - wallT;
+    96→  const iw = w - 2 * wallT, ih = h - 2 * wallT;
+    97→  cavityShape.moveTo(-iw/2 + ir, -ih/2);
+    98→  cavityShape.lineTo(iw/2 - ir, -ih/2);
+    99→  cavityShape.quadraticCurveTo(iw/2, -ih/2, iw/2, -ih/2 + ir);
+   100→  cavityShape.lineTo(iw/2, ih/2 - ir);
+   101→  cavityShape.quadraticCurveTo(iw/2, ih/2, iw/2 - ir, ih/2);
+   102→  cavityShape.lineTo(-iw/2 + ir, ih/2);
+   103→  cavityShape.quadraticCurveTo(-iw/2, ih/2, -iw/2, ih/2 - ir);
+   104→  cavityShape.lineTo(-iw/2, -ih/2 + ir);
+   105→  cavityShape.quadraticCurveTo(-iw/2, -ih/2, -iw/2 + ir, -ih/2);
+   106→  const cavityGeom = new THREE.ExtrudeGeometry(cavityShape, { depth: d - wallT, bevelEnabled: false });
+   107→  cavityGeom.center();
+   108→  const cavity = new THREE.Mesh(cavityGeom, new THREE.MeshStandardMaterial({
+   109→    color: 0x1a1d22, metalness: 0.4, roughness: 0.8,
+   110→  }));
+   111→  cavity.position.z = -wallT/2 + 1;
+   112→  group.add(cavity);
+   113→
+   114→  // --- Bearing bores (large, with chamfered rims) ---
+   115→  const borePositions: [number, number][] = [[-45, 0], [45, 0]];
+   116→  borePositions.forEach(([cx, cy], idx) => {
+   117→    // Through bore
+   118→    const bore = addShadow(new THREE.Mesh(
+   119→      new THREE.CylinderGeometry(12, 12, d + 6, 36),
+   120→      darkMat
+   121→    ));
+   122→    bore.rotation.x = Math.PI / 2;
+   123→    bore.position.set(cx, cy, 0);
+   124→    group.add(bore);
+   125→
+   126→    // Bearing seat (slightly larger recess)
+   127→    [d/2, -d/2].forEach((z) => {
+   128→      const seat = addShadow(new THREE.Mesh(
+   129→        new THREE.CylinderGeometry(15, 12, 4, 36),
+   130→        mat
+   131→      ));
+   132→      seat.rotation.x = Math.PI / 2;
+   133→      seat.position.set(cx, cy, z - Math.sign(z) * 2);
+   134→      group.add(seat);
+   135→
+   136→      // Snap ring groove
+   137→      const groove = new THREE.Mesh(
+   138→        new THREE.TorusGeometry(14, 0.8, 6, 36),
+   139→        darkMat
+   140→      );
+   141→      groove.position.set(cx, cy, z - Math.sign(z) * 4);
+   142→      groove.rotation.x = Math.PI / 2;
+   143→      group.add(groove);
+   144→    });
+   145→  });
+   146→
+   147→  // --- Smaller holes (top and bottom) ---
+   148→  const smallHoles: [number, number][] = [[0, 30], [0, -30]];
+   149→  smallHoles.forEach(([cx, cy]) => {
+   150→    const hole = addShadow(new THREE.Mesh(
+   151→      new THREE.CylinderGeometry(8, 8, d + 4, 28),
+   152→      darkMat
+   153→    ));
+   154→    hole.rotation.x = Math.PI / 2;
+   155→    hole.position.set(cx, cy, 0);
+   156→    group.add(hole);
+   157→
+   158→    // Counterbore
+   159→    [d/2, -d/2].forEach((z) => {
+   160→      const cb = addShadow(new THREE.Mesh(
+   161→        new THREE.CylinderGeometry(11, 11, 4, 28),
+   162→        mat
+   163→      ));
+   164→      cb.rotation.x = Math.PI / 2;
+   165→      cb.position.set(cx, cy, z - Math.sign(z) * 2);
+   166→      group.add(cb);
+   167→    });
+   168→  });
+   169→
+   170→  // --- Mounting bosses with counterbored holes ---
+   171→  const mountFeat = features.find((f) => f.id === 'f_cut_holes');
+   172→  if (mountFeat && !mountFeat.suppressed) {
+   173→    const mountPositions: [number, number][] = [
+   174→      [-50, 30], [50, 30], [-50, -30], [50, -30]
+   175→    ];
+   176→    mountPositions.forEach(([cx, cy]) => {
+   177→      // Boss (raised circular pad)
+   178→      const boss = addShadow(new THREE.Mesh(
+   179→        new THREE.CylinderGeometry(10, 12, 3, 24),
+   180→        mat
+   181→      ));
+   182→      boss.rotation.x = Math.PI / 2;
+   183→      boss.position.set(cx, cy, d/2 + 1.5);
+   184→      group.add(boss);
+   185→
+   186→      // Through hole
+   187→      const mh = addShadow(new THREE.Mesh(
+   188→        new THREE.CylinderGeometry(4, 4, d + 8, 20),
+   189→        darkMat
+   190→      ));
+   191→      mh.rotation.x = Math.PI / 2;
+   192→      mh.position.set(cx, cy, 0);
+   193→      group.add(mh);
+   194→
+   195→      // Counterbore on top
+   196→      const cb = addShadow(new THREE.Mesh(
+   197→        new THREE.CylinderGeometry(7, 7, 4, 20),
+   198→        mat
+   199→      ));
+   200→      cb.rotation.x = Math.PI / 2;
+   201→      cb.position.set(cx, cy, d/2 + 2);
+   202→      group.add(cb);
+   203→    });
+   204→  }
+   205→
+   206→  // --- Internal ribs (visible through bore) ---
+   207→  const ribMat = aluminum();
+   208→  const ribPositions: [number, number][] = [
+   209→    [-22, 0, 0], [22, 0, 0], [0, 15, 0], [0, -15, 0]
+   210→  ];
+   211→  ribPositions.forEach(([x, y, _]) => {
+   212→    const rib = new THREE.Mesh(
+   213→      new THREE.BoxGeometry(2.5, 20, d - wallT * 2),
+   214→      ribMat
+   215→    );
+   216→    rib.position.set(x, y, 0);
+   217→    group.add(rib);
+   218→  });
+   219→
+   220→  // --- Gasket surface (front face recess) ---
+   221→  const gasket = new THREE.Mesh(
+   222→    new THREE.RingGeometry(2, 5, 16),
+   223→    new THREE.MeshStandardMaterial({ color: 0xc09545, metalness: 0.4, roughness: 0.7 })
+   224→  );
+   225→  gasket.position.set(0, 0, d/2 + 0.5);
+   226→  group.add(gasket);
+   227→
+   228→  // --- Breather port (top) ---
+   229→  const breatherBase = addShadow(new THREE.Mesh(
+   230→    new THREE.CylinderGeometry(8, 10, 4, 20),
+   231→    mat
+   232→  ));
+   233→  breatherBase.rotation.x = Math.PI / 2;
+   234→  breatherBase.position.set(0, h/2 + 2, 0);
+   235→  group.add(breatherBase);
+   236→
+   237→  const breatherTop = addShadow(new THREE.Mesh(
+   238→    new THREE.CylinderGeometry(6, 8, 6, 16),
+   239→    brass()
+   240→  ));
+   241→  breatherTop.rotation.x = Math.PI / 2;
+   242→  breatherTop.position.set(0, h/2 + 7, 0);
+   243→  group.add(breatherTop);
+   244→
+   245→  // Breather vent slots
+   246→  for (let i = 0; i < 6; i++) {
+   247→    const slot = new THREE.Mesh(
+   248→      new THREE.BoxGeometry(1, 6, 1),
+   249→      darkMat
+   250→    );
+   251→    slot.position.set(0, h/2 + 7, 0);
+   252→    slot.rotation.y = (i / 6) * Math.PI * 2;
+   253→    slot.position.x = Math.cos((i / 6) * Math.PI * 2) * 3;
+   254→    slot.position.z = Math.sin((i / 6) * Math.PI * 2) * 3;
+   255→    group.add(slot);
+   256→  }
+   257→
+   258→  // --- Drain plug (bottom) ---
+   259→  const drainBase = addShadow(new THREE.Mesh(
+   260→    new THREE.CylinderGeometry(8, 10, 4, 20),
+   261→    mat
+   262→  ));
+   263→  drainBase.rotation.x = Math.PI / 2;
+   264→  drainBase.position.set(0, -h/2 - 2, -d/4);
+   265→  group.add(drainBase);
+   266→
+   267→  const drainPlug = addShadow(new THREE.Mesh(
+   268→    new THREE.CylinderGeometry(6, 7, 4, 6),
+   269→    brass()
+   270→  ));
+   271→  drainPlug.rotation.x = Math.PI / 2;
+   272→  drainPlug.position.set(0, -h/2 - 6, -d/4);
+   273→  group.add(drainPlug);
+   274→
+   275→  // Hex head on drain plug
+   276→  const hexHead = new THREE.Mesh(
+   277→    new THREE.CylinderGeometry(8, 8, 2, 6),
+   278→    brass()
+   279→  );
+   280→  hexHead.rotation.x = Math.PI / 2;
+   281→  hexHead.position.set(0, -h/2 - 7, -d/4);
+   282→  group.add(hexHead);
+   283→
+   284→  // --- Oil sight glass (side) ---
+   285→  const sight = addShadow(new THREE.Mesh(
+   286→    new THREE.CylinderGeometry(6, 6, 2, 24),
+   287→    new THREE.MeshStandardMaterial({
+   288→      color: 0xffaa00, metalness: 0.1, roughness: 0.2,
+   289→      transparent: true, opacity: 0.6, emissive: 0x442200
+   290→    })
+   291→  ));
+   292→  sight.rotation.x = Math.PI / 2;
+   293→  sight.position.set(w/2 + 1, -10, 0);
+   294→  sight.rotation.y = Math.PI / 2;
+   295→  group.add(sight);
+   296→
+   297→  // --- Mounting flange feet ---
+   298→  const footPositions: [number, number][] = [
+   299→    [-w/2 + 8, -h/2 - 4], [w/2 - 8, -h/2 - 4]
+   300→  ];
+   301→  footPositions.forEach(([fx, fy]) => {
+   302→    const foot = addShadow(new THREE.Mesh(
+   303→      new THREE.BoxGeometry(20, 6, d - 10),
+   304→      mat
+   305→    ));
+   306→    foot.position.set(fx, fy, 0);
+   307→    group.add(foot);
+   308→
+   309→    // Foot mounting hole
+   310→    const fhol = new THREE.Mesh(
+   311→      new THREE.CylinderGeometry(3, 3, 8, 12),
+   312→      darkMat
+   313→    );
+   314→    fhol.rotation.x = Math.PI / 2;
+   315→    fhol.position.set(fx, fy - 2, 0);
+   316→    group.add(fhol);
+   317→  });
+   318→
+   319→  // --- Bolt circle markers (yellow indicator dots) ---
+   320→  const patternFeat = features.find((f) => f.id === 'f_pattern1');
+   321→  if (patternFeat && !patternFeat.suppressed) {
+   322→    const count = (patternFeat.parameters.count as number) || 8;
+   323→    for (let i = 0; i < count; i++) {
+   324→      const angle = (i / count) * Math.PI * 2;
+   325→      const r2 = 22;
+   326→      // Small lightening hole on top face
+   327→      const dot = new THREE.Mesh(
+   328→        new THREE.CylinderGeometry(2, 2, 4, 12),
+   329→        darkMat
+   330→      );
+   331→      dot.rotation.x = Math.PI / 2;
+   332→      dot.position.set(Math.cos(angle) * r2, Math.sin(angle) * r2, d/2);
+   333→      group.add(dot);
+   334→    }
+   335→  }
+   336→
+   337→  // --- Fillet visualization (corner rounds) ---
+   338→  const filletFeat = features.find((f) => f.id === 'f_fillet1');
+   339→  if (filletFeat && !filletFeat.suppressed) {
+   340→    const radius = filletFeat.parameters.radius as number;
+   341→    const corners: [number, number][] = [
+   342→      [w/2 - radius, h/2 - radius], [-(w/2 - radius), h/2 - radius],
+   343→      [w/2 - radius, -(h/2 - radius)], [-(w/2 - radius), -(h/2 - radius)],
+   344→    ];
+   345→    corners.forEach(([x, y]) => {
+   346→      [d/2, -d/2].forEach((z) => {
+   347→        const sphere = addShadow(new THREE.Mesh(
+   348→          new THREE.SphereGeometry(radius, 16, 16),
+   349→          mat
+   350→        ));
+   351→        sphere.position.set(x, y, z);
+   352→        group.add(sphere);
+   353→      });
+   354→    });
+   355→  }
+   356→
+   357→  // --- Nameplate ---
+   358→  const plate = new THREE.Mesh(
+   359→    new THREE.BoxGeometry(20, 12, 0.5),
+   360→    brass()
+   361→  );
+   362→  plate.position.set(-30, -h/2 - 0.3, d/2 - 15);
+   363→  group.add(plate);
+   364→
+   365→  return group;
+   366→}
+   367→
+   368→// ====================== SHAFT (stepped with keyways) ======================
+   369→export function createShaftGeometry(): THREE.Group {
+   370→  const group = new THREE.Group();
+   371→  const mat = stainless();
+   372→
+   373→  // Stepped shaft: 5 sections of varying diameter
+   374→  // Layout (along Y axis): end -> shoulder -> main -> shoulder -> end
+   375→  const sections = [
+   376→    { y: -55, len: 18, r1: 8,  r2: 10 },   // left end (smaller)
+   377→    { y: -38, len: 6,  r1: 10, r2: 13 },   // shoulder
+   378→    { y: -28, len: 38, r1: 11, r2: 11 },   // main bearing journal
+   379→    { y: 10,  len: 6,  r1: 13, r2: 13 },   // shoulder
+   380→    { y: 18,  len: 20, r1: 13, r2: 11 },   // gear seat
+   381→    { y: 38,  len: 4,  r1: 11, r2: 10 },   // shoulder
+   382→    { y: 44,  len: 12, r1: 10, r2: 8 },    // right end
+   383→  ];
+   384→
+   385→  sections.forEach((s, i) => {
+   386→    const geom = new THREE.CylinderGeometry(s.r1, s.r2, s.len, 32);
+   387→    const mesh = addShadow(new THREE.Mesh(geom, mat));
+   388→    mesh.position.y = s.y + s.len/2;
+   389→    group.add(mesh);
+   390→
+   391→    // Chamfer at section transitions (small ring)
+   392→    if (i < sections.length - 1) {
+   393→      const chamfer = new THREE.Mesh(
+   394→        new THREE.TorusGeometry(s.r1 - 0.5, 0.5, 6, 24),
+   395→        mat
+   396→      );
+   397→      chamfer.rotation.x = Math.PI / 2;
+   398→      chamfer.position.y = s.y + s.len;
+   399→      group.add(chamfer);
+   400→    }
+   401→  });
+   402→
+   403→  // Keyway on left end (rectangular slot)
+   404→  const keyway1 = addShadow(new THREE.Mesh(
+   405→    new THREE.BoxGeometry(4, 18, 3),
+   406→    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.5, roughness: 0.6 })
+   407→  ));
+   408→  keyway1.position.set(8.5, -50, 0);
+   409→  keyway1.rotation.z = Math.PI / 2;
+   410→  group.add(keyway1);
+   411→
+   412→  // Keyway on right end
+   413→  const keyway2 = addShadow(new THREE.Mesh(
+   414→    new THREE.BoxGeometry(4, 12, 3),
+   415→    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.5, roughness: 0.6 })
+   416→  ));
+   417→  keyway2.position.set(8.5, 47, 0);
+   418→  keyway2.rotation.z = Math.PI / 2;
+   419→  group.add(keyway2);
+   420→
+   421→  // Retaining ring grooves (snap ring)
+   422→  [-30, 38].forEach((y) => {
+   423→    const groove = new THREE.Mesh(
+   424→      new THREE.TorusGeometry(11.5, 0.6, 6, 32),
+   425→      new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.4 })
+   426→    );
+   427→    groove.rotation.x = Math.PI / 2;
+   428→    groove.position.y = y;
+   429→    group.add(groove);
+   430→  });
+   431→
+   432→  // Center drilling (lathe center mark on ends)
+   433→  [-63, 56].forEach((y) => {
+   434→    const center = new THREE.Mesh(
+   435→      new THREE.ConeGeometry(1.5, 3, 12),
+   436→      mat
+   437→    );
+   438→    center.rotation.x = y < 0 ? 0 : Math.PI;
+   439→    center.position.y = y + (y < 0 ? 1.5 : -1.5);
+   440→    group.add(center);
+   441→  });
+   442→
+   443→  return group;
+   444→}
+   445→
+   446→// ====================== GEAR (with hub, web, lightening holes) ======================
+   447→export function createGearGeometry(): THREE.Group {
+   448→  const group = new THREE.Group();
+   449→  const mat = steel();
+   450→  const darkMat = darkSteel();
+   451→
+   452→  const teeth = 32;
+   453→  const gearModule = 2;
+   454→  const pitchR = (teeth * gearModule) / 2;
+   455→  const outerR = pitchR + gearModule;
+   456→  const rootR = pitchR - gearModule * 1.25;
+   457→  const thickness = 20;
+   458→
+   459→  // --- Gear teeth using involute approximation ---
+   460→  const shape = new THREE.Shape();
+   461→  for (let i = 0; i < teeth; i++) {
+   462→    const a0 = (i / teeth) * Math.PI * 2;
+   463→    const a1 = ((i + 0.25) / teeth) * Math.PI * 2;
+   464→    const a2 = ((i + 0.4) / teeth) * Math.PI * 2;
+   465→    const a3 = ((i + 0.6) / teeth) * Math.PI * 2;
+   466→    const a4 = ((i + 0.75) / teeth) * Math.PI * 2;
+   467→    const a5 = ((i + 1) / teeth) * Math.PI * 2;
+   468→
+   469→    if (i === 0) shape.moveTo(Math.cos(a0) * rootR, Math.sin(a0) * rootR);
+   470→    // Tooth profile: rise -> land -> fall -> root
+   471→    shape.lineTo(Math.cos(a1) * rootR, Math.sin(a1) * rootR);
+   472→    shape.lineTo(Math.cos(a2) * outerR, Math.sin(a2) * outerR);
+   473→    shape.lineTo(Math.cos(a3) * outerR, Math.sin(a3) * outerR);
+   474→    shape.lineTo(Math.cos(a4) * rootR, Math.sin(a4) * rootR);
+   475→    shape.lineTo(Math.cos(a5) * rootR, Math.sin(a5) * rootR);
+   476→  }
+   477→
+   478→  // Central bore with keyway
+   479→  const boreR = 11;
+   480→  const keywayW = 4, keywayD = 2;
+   481→  const hole = new THREE.Path();
+   482→  hole.absarc(0, 0, boreR, 0, Math.PI * 2, true);
+   483→  // Keyway slot
+   484→  hole.moveTo(boreR - 0.1, -keywayW/2);
+   485→  hole.lineTo(boreR + keywayD, -keywayW/2);
+   486→  hole.lineTo(boreR + keywayD, keywayW/2);
+   487→  hole.lineTo(boreR - 0.1, keywayW/2);
+   488→  shape.holes.push(hole);
+   489→
+   490→  // Lightening holes (4 large circular cutouts in web)
+   491→  const lightR = 6;
+   492→  const lightOffset = pitchR * 0.55;
+   493→  for (let i = 0; i < 4; i++) {
+   494→    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+   495→    const lh = new THREE.Path();
+   496→    lh.absarc(Math.cos(a) * lightOffset, Math.sin(a) * lightOffset, lightR, 0, Math.PI * 2, true);
+   497→    shape.holes.push(lh);
+   498→  }
+   499→
+   500→  const gearGeom = new THREE.ExtrudeGeometry(shape, {
+   501→    depth: thickness,
+   502→    bevelEnabled: true,
+   503→    bevelThickness: 0.5,
+   504→    bevelSize: 0.5,
+   505→    bevelSegments: 2,
+   506→    curveSegments: 24,
+   507→  });
+   508→  gearGeom.center();
+   509→  const gear = addShadow(new THREE.Mesh(gearGeom, mat));
+   510→  gear.rotation.x = Math.PI / 2;
+   511→  group.add(gear);
+   512→
+   513→  // Hub (raised boss around bore, both sides)
+   514→  [thickness/2, -thickness/2].forEach((z) => {
+   515→    const hubGeom = new THREE.CylinderGeometry(boreR + 4, boreR + 4, 6, 32);
+   516→    const hub = addShadow(new THREE.Mesh(hubGeom, mat));
+   517→    hub.rotation.x = Math.PI / 2;
+   518→    hub.position.z = z + Math.sign(z) * 3;
+   519→    group.add(hub);
+   520→  });
+   521→
+   522→  return group;
+   523→}
+   524→
+   525→// ====================== BEARING (detailed with cage, seals) ======================
+   526→export function createBearingGeometry(): THREE.Group {
+   527→  const group = new THREE.Group();
+   528→  const outerMat = metal(0x9ca3af, 0.92, 0.18);
+   529→  const innerMat = metal(0xc4c8cc, 0.95, 0.1);
+   530→  const ballMat = metal(0xeeeeee, 0.95, 0.05);
+   531→  const cageMat = brass();
+   532→  const sealMat = rubber();
+   533→
+   534→  const od = 47, id = 20, width = 14;
+   535→  const ballR = 4;
+   536→  const pitchR = (od + id) / 4;
+   537→
+   538→  // Outer race with groove for balls
+   539→  const outerRace = addShadow(new THREE.Mesh(
+   540→    new THREE.CylinderGeometry(od/2, od/2, width, 48),
+   541→    outerMat
+   542→  ));
+   543→  outerRace.rotation.x = Math.PI / 2;
+   544→  group.add(outerRace);
+   545→
+   546→  // Outer race inner groove (where balls ride)
+   547→  const outerGroove = new THREE.Mesh(
+   548→    new THREE.TorusGeometry(pitchR, ballR * 0.7, 12, 48),
+   549→    new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9, roughness: 0.15 })
+   550→  );
+   551→  group.add(outerGroove);
+   552→
+   553→  // Inner race
+   554→  const innerRace = addShadow(new THREE.Mesh(
+   555→    new THREE.CylinderGeometry(id/2, id/2, width, 32),
+   556→    innerMat
+   557→  ));
+   558→  innerRace.rotation.x = Math.PI / 2;
+   559→  group.add(innerRace);
+   560→
+   561→  // Inner race outer groove
+   562→  const innerGroove = new THREE.Mesh(
+   563→    new THREE.TorusGeometry(pitchR, ballR * 0.7, 12, 32),
+   564→    new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9, roughness: 0.15 })
+   565→  );
+   566→  group.add(innerGroove);
+   567→
+   568→  // Balls with cage
+   569→  const ballCount = 10;
+   570→  for (let i = 0; i < ballCount; i++) {
+   571→    const a = (i / ballCount) * Math.PI * 2;
+   572→    // Ball
+   573→    const ball = addShadow(new THREE.Mesh(
+   574→      new THREE.SphereGeometry(ballR, 24, 24),
+   575→      ballMat
+   576→    ));
+   577→    ball.position.set(Math.cos(a) * pitchR, Math.sin(a) * pitchR, 0);
+   578→    group.add(ball);
+   579→
+   580→    // Cage pocket (small bracket between balls)
+   581→    const pocket = new THREE.Mesh(
+   582→      new THREE.BoxGeometry(1.5, ballR * 1.5, 2),
+   583→      cageMat
+   584→    );
+   585→    pocket.position.set(Math.cos(a) * pitchR, Math.sin(a) * pitchR, 0);
+   586→    pocket.lookAt(0, 0, 0);
+   587→    pocket.rotateY(Math.PI / 2);
+   588→    group.add(pocket);
+   589→  }
+   590→
+   591→  // Cage (thin brass ring with pockets)
+   592→  const cageRing = new THREE.Mesh(
+   593→    new THREE.TorusGeometry(pitchR, 1, 8, 48),
+   594→    cageMat
+   595→  );
+   596→  group.add(cageRing);
+   597→
+   598→  // Rubber seals on both sides
+   599→  [width/2 - 1, -width/2 + 1].forEach((z) => {
+   600→    const seal = new THREE.Mesh(
+   601→      new THREE.RingGeometry(id/2 + 1, od/2 - 1, 48),
+   602→      sealMat
+   603→    );
+   604→    seal.position.z = z;
+   605→    seal.rotation.y = 0;
+   606→    group.add(seal);
+   607→
+   608→    // Seal lip
+   609→    const lip = new THREE.Mesh(
+   610→      new THREE.TorusGeometry((id + 4)/2, 0.6, 6, 32),
+   611→      sealMat
+   612→    );
+   613→    lip.position.z = z;
+   614→    group.add(lip);
+   615→  });
+   616→
+   617→  // Brand engraving (decorative line on outer race)
+   618→  const engrave = new THREE.Mesh(
+   619→    new THREE.TorusGeometry(od/2 - 1, 0.3, 4, 48),
+   620→    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.3 })
+   621→  );
+   622→  engrave.position.z = width/2 + 0.1;
+   623→  group.add(engrave);
+   624→
+   625→  return group;
+   626→}
+   627→
+   628→// ====================== COVER (with ribs, gasket, oil sight) ======================
+   629→export function createCoverGeometry(): THREE.Group {
+   630→  const group = new THREE.Group();
+   631→  const mat = aluminum();
+   632→  const darkMat = darkSteel();
+   633→  const gasketMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, metalness: 0.2, roughness: 0.8 });
+   634→
+   635→  const w = 120, h = 80, d = 8;
+   636→
+   637→  // Main cover plate (with rounded corners)
+   638→  const shape = new THREE.Shape();
+   639→  const r = 8;
+   640→  shape.moveTo(-w/2 + r, -h/2);
+   641→  shape.lineTo(w/2 - r, -h/2);
+   642→  shape.quadraticCurveTo(w/2, -h/2, w/2, -h/2 + r);
+   643→  shape.lineTo(w/2, h/2 - r);
+   644→  shape.quadraticCurveTo(w/2, h/2, w/2 - r, h/2);
+   645→  shape.lineTo(-w/2 + r, h/2);
+   646→  shape.quadraticCurveTo(-w/2, h/2, -w/2, h/2 - r);
+   647→  shape.lineTo(-w/2, -h/2 + r);
+   648→  shape.quadraticCurveTo(-w/2, -h/2, -w/2 + r, -h/2);
+   649→
+   650→  const coverGeom = new THREE.ExtrudeGeometry(shape, {
+   651→    depth: d, bevelEnabled: true, bevelThickness: 1, bevelSize: 1, bevelSegments: 2,
+   652→  });
+   653→  const cover = addShadow(new THREE.Mesh(coverGeom, mat));
+   654→  cover.position.z = -d/2;
+   655→  group.add(cover);
+   656→
+   657→  // Recess for gasket
+   658→  const recessShape = new THREE.Shape();
+   659→  const rr = r - 4;
+   660→  const rw = w - 8, rh = h - 8;
+   661→  recessShape.moveTo(-rw/2 + rr, -rh/2);
+   662→  recessShape.lineTo(rw/2 - rr, -rh/2);
+   663→  recessShape.quadraticCurveTo(rw/2, -rh/2, rw/2, -rh/2 + rr);
+   664→  recessShape.lineTo(rw/2, rh/2 - rr);
+   665→  recessShape.quadraticCurveTo(rw/2, rh/2, rw/2 - rr, rh/2);
+   666→  recessShape.lineTo(-rw/2 + rr, rh/2);
+   667→  recessShape.quadraticCurveTo(-rw/2, rh/2, -rw/2, rh/2 - rr);
+   668→  recessShape.lineTo(-rw/2, -rh/2 + rr);
+   669→  recessShape.quadraticCurveTo(-rw/2, -rh/2, -rw/2 + rr, -rh/2);
+   670→
+   671→  const recessGeom = new THREE.ExtrudeGeometry(recessShape, { depth: 3, bevelEnabled: false });
+   672→  const recess = new THREE.Mesh(recessGeom, gasketMat);
+   673→  recess.position.z = -1.5;
+   674→  group.add(recess);
+   675→
+   676→  // Reinforcing ribs (cross pattern on outer face)
+   677→  const ribMat = aluminum();
+   678→  const ribs: [number, number, number][] = [
+   679→    [0, 0, 0],  // horizontal
+   680→    [0, 0, Math.PI / 2],  // vertical
+   681→  ];
+   682→  ribs.forEach(([rx, ry, rz]) => {
+   683→    const rib = addShadow(new THREE.Mesh(
+   684→      new THREE.BoxGeometry(w - 20, 3, 2),
+   685→      ribMat
+   686→    ));
+   687→    rib.position.set(0, 0, d/2 + 1);
+   688→    rib.rotation.z = rz;
+   689→    group.add(rib);
+   690→  });
+   691→
+   692→  // Diagonal ribs
+   693→  [Math.PI / 4, -Math.PI / 4].forEach((rz) => {
+   694→    const rib = addShadow(new THREE.Mesh(
+   695→      new THREE.BoxGeometry(60, 3, 2),
+   696→      ribMat
+   697→    ));
+   698→    rib.position.set(0, 0, d/2 + 1);
+   699→    rib.rotation.z = rz;
+   700→    group.add(rib);
+   701→  });
+   702→
+   703→  // Bolt holes with counterbores
+   704→  const boltPositions: [number, number][] = [
+   705→    [-50, 30], [50, 30], [-50, -30], [50, -30],
+   706→    [0, 30], [0, -30], [-50, 0], [50, 0]
+   707→  ];
+   708→  boltPositions.forEach(([bx, by]) => {
+   709→    // Through hole
+   710→    const hole = new THREE.Mesh(
+   711→      new THREE.CylinderGeometry(3.5, 3.5, d + 4, 16),
+   712→      darkMat
+   713→    );
+   714→    hole.rotation.x = Math.PI / 2;
+   715→    hole.position.set(bx, by, 0);
+   716→    group.add(hole);
+   717→
+   718→    // Counterbore
+   719→    const cb = new THREE.Mesh(
+   720→      new THREE.CylinderGeometry(6, 6, 3, 16),
+   721→      mat
+   722→    );
+   723→    cb.rotation.x = Math.PI / 2;
+   724→    cb.position.set(bx, by, d/2 - 1);
+   725→    group.add(cb);
+   726→  });
+   727→
+   728→  // Oil fill plug (top)
+   729→  const fillPlug = addShadow(new THREE.Mesh(
+   730→    new THREE.CylinderGeometry(8, 9, 4, 6),
+   731→    brass()
+   732→  ));
+   733→  fillPlug.rotation.x = Math.PI / 2;
+   734→  fillPlug.position.set(0, h/2 + 2, 0);
+   735→  group.add(fillPlug);
+   736→
+   737→  // Oil sight glass (transparent)
+   738→  const sight = addShadow(new THREE.Mesh(
+   739→    new THREE.CylinderGeometry(7, 7, 2, 24),
+   740→    new THREE.MeshStandardMaterial({
+   741→      color: 0xff8800, metalness: 0.1, roughness: 0.15,
+   742→      transparent: true, opacity: 0.55, emissive: 0x442200
+   743→    })
+   744→  ));
+   745→  sight.position.set(40, 0, d/2 + 1);
+   746→  group.add(sight);
+   747→
+   748→  // Sight glass retainer ring
+   749→  const retainer = new THREE.Mesh(
+   750→    new THREE.TorusGeometry(7, 1, 6, 24),
+   751→    brass()
+   752→  );
+   753→  retainer.position.set(40, 0, d/2 + 1.5);
+   754→  group.add(retainer);
+   755→
+   756→  return group;
+   757→}
+   758→
+   759→// ====================== SOCKET HEAD CAP SCREW ======================
+   760→export function createBoltGeometry(): THREE.Group {
+   761→  const group = new THREE.Group();
+   762→  const mat = metal(0x475569, 0.92, 0.18);
+   763→  const threadMat = metal(0x2a2e35, 0.95, 0.15);
+   764→
+   765→  // Cylindrical head (socket head cap screw style)
+   766→  const headGeom = new THREE.CylinderGeometry(5, 5, 5, 24);
+   767→  const head = addShadow(new THREE.Mesh(headGeom, mat));
+   768→  head.position.y = 2.5;
+   769→  group.add(head);
+   770→
+   771→  // Top chamfer
+   772→  const chamfer = new THREE.Mesh(
+   773→    new THREE.CylinderGeometry(4.5, 5, 0.5, 24),
+   774→    mat
+   775→  );
+   776→  chamfer.position.y = 5;
+   777→  group.add(chamfer);
+   778→
+   779→  // Hex socket (Allen key hole)
+   780→  const socketShape = new THREE.Shape();
+   781→  for (let i = 0; i < 6; i++) {
+   782→    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+   783→    if (i === 0) socketShape.moveTo(Math.cos(a) * 2, Math.sin(a) * 2);
+   784→    else socketShape.lineTo(Math.cos(a) * 2, Math.sin(a) * 2);
+   785→  }
+   786→  const socketGeom = new THREE.ExtrudeGeometry(socketShape, { depth: 2.5, bevelEnabled: false });
+   787→  const socket = new THREE.Mesh(socketGeom, new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.4, roughness: 0.8 }));
+   788→  socket.rotation.x = Math.PI;
+   789→  socket.position.y = 5;
+   790→  group.add(socket);
+   791→
+   792→  // Body / shank
+   793→  const body = addShadow(new THREE.Mesh(
+   794→    new THREE.CylinderGeometry(3, 3, 20, 24),
+   795→    mat
+   796→  ));
+   797→  body.position.y = -10;
+   798→  group.add(body);
+   799→
+   800→  // Thread details (helical appearance via rings)
+   801→  for (let i = 0; i < 14; i++) {
+   802→    const ring = new THREE.Mesh(
+   803→      new THREE.TorusGeometry(3, 0.25, 4, 20),
+   804→      threadMat
+   805→    );
+   806→    ring.position.y = -1 - i * 1.4;
+   807→    ring.rotation.x = Math.PI / 2;
+   808→    group.add(ring);
+   809→  }
+   810→
+   811→  // Thread chamfer at tip
+   812→  const tip = new THREE.Mesh(
+   813→    new THREE.CylinderGeometry(3, 1.5, 2, 16),
+   814→    mat
+   815→  );
+   816→  tip.position.y = -20.5;
+   817→  group.add(tip);
+   818→
+   819→  return group;
+   820→}
+   821→
+   822→// ====================== NEW: JAW COUPLING ======================
+   823→export function createCouplingGeometry(): THREE.Group {
+   824→  const group = new THREE.Group();
+   825→  const metalMat = aluminum();
+   826→  const spiderMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, metalness: 0.05, roughness: 0.7 });
+   827→
+   828→  const od = 30, id = 8, width = 20;
+   829→
+   830→  // Two metal hubs
+   831→  [-width/2 - 3, width/2 + 3].forEach((z) => {
+   832→    const hub = addShadow(new THREE.Mesh(
+   833→      new THREE.CylinderGeometry(od/2, od/2, 6, 32),
+   834→      metalMat
+   835→    ));
+   836→    hub.rotation.x = Math.PI / 2;
+   837→    hub.position.z = z;
+   838→    group.add(hub);
+   839→
+   840→    // Jaw teeth (3 claws)
+   841→    for (let i = 0; i < 3; i++) {
+   842→      const a = (i / 3) * Math.PI * 2;
+   843→      const claw = addShadow(new THREE.Mesh(
+   844→        new THREE.BoxGeometry(8, od * 0.8, 6),
+   845→        metalMat
+   846→      ));
+   847→      claw.position.set(Math.cos(a) * 6, Math.sin(a) * 6, z);
+   848→      claw.rotation.z = a;
+   849→      group.add(claw);
+   850→    }
+   851→
+   852→    // Center bore
+   853→    const bore = new THREE.Mesh(
+   854→      new THREE.CylinderGeometry(id/2, id/2, 8, 16),
+   855→      new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.5, roughness: 0.7 })
+   856→    );
+   857→    bore.rotation.x = Math.PI / 2;
+   858→    bore.position.z = z;
+   859→    group.add(bore);
+   860→
+   861→    // Keyway
+   862→    const keyway = new THREE.Mesh(
+   863→      new THREE.BoxGeometry(2, 3, 8),
+   864→      new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.3, roughness: 0.9 })
+   865→    );
+   866→    keyway.position.set(id/2 + 1, 0, z);
+   867→    group.add(keyway);
+   868→
+   869→    // Set screw
+   870→    const setScrew = new THREE.Mesh(
+   871→      new THREE.CylinderGeometry(1.5, 1.5, 2, 6),
+   872→      darkSteel()
+   873→    );
+   874→    setScrew.rotation.x = Math.PI / 2;
+   875→    setScrew.position.set(od/2 - 1, 0, z);
+   876→    group.add(setScrew);
+   877→  });
+   878→
+   879→  // Spider (rubber/elastomer in the middle)
+   880→  const spider = addShadow(new THREE.Mesh(
+   881→    new THREE.CylinderGeometry(od/2 - 2, od/2 - 2, width, 32),
+   882→    spiderMat
+   883→  ));
+   884→  spider.rotation.x = Math.PI / 2;
+   885→  group.add(spider);
+   886→
+   887→  // Spider teeth (matching the jaws)
+   888→  for (let i = 0; i < 3; i++) {
+   889→    const a = (i / 3) * Math.PI * 2 + Math.PI / 3;
+   890→    const leg = addShadow(new THREE.Mesh(
+   891→      new THREE.BoxGeometry(8, od * 0.7, width),
+   892→      spiderMat
+   893→    ));
+   894→    leg.position.set(Math.cos(a) * 5, Math.sin(a) * 5, 0);
+   895→    leg.rotation.z = a;
+   896→    group.add(leg);
+   897→  }
+   898→
+   899→  return group;
+   900→}
+   901→
+   902→// ====================== NEW: V-BELT PULLEY ======================
+   903→export function createPulleyGeometry(): THREE.Group {
+   904→  const group = new THREE.Group();
+   905→  const mat = aluminum();
+   906→  const darkMat = darkSteel();
+   907→
+   908→  const od = 60, id = 12, width = 24;
+   909→
+   910→  // Main pulley body with V-grooves
+   911→  // We construct this as a LatheGeometry: profile revolved around Y axis
+   912→  const points: THREE.Vector2[] = [];
+   913→  // Profile from inside to outside (top half)
+   914→  points.push(new THREE.Vector2(id/2, -width/2));
+   915→  points.push(new THREE.Vector2(id/2, -width/2 + 3));
+   916→  points.push(new THREE.Vector2(id/2 + 4, -width/2 + 3));
+   917→  // V-grooves (3 of them)
+   918→  const grooveCount = 3;
+   919→  const grooveSpacing = 6;
+   920→  const startX = -width/2 + 6;
+   921→  for (let i = 0; i < grooveCount; i++) {
+   922→    const gx = startX + i * grooveSpacing;
+   923→    points.push(new THREE.Vector2(od/2 - 1, gx));
+   924→    points.push(new THREE.Vector2(od/2 - 5, gx + 1.5));
+   925→    points.push(new THREE.Vector2(od/2 - 1, gx + 3));
+   926→  }
+   927→  points.push(new THREE.Vector2(id/2 + 4, width/2 - 3));
+   928→  points.push(new THREE.Vector2(id/2, width/2 - 3));
+   929→  points.push(new THREE.Vector2(id/2, width/2));
+   930→
+   931→  const pulleyGeom = new THREE.LatheGeometry(points, 48);
+   932→  const pulley = addShadow(new THREE.Mesh(pulleyGeom, mat));
+   933→  pulley.rotation.x = Math.PI / 2;
+   934→  group.add(pulley);
+   935→
+   936→  // Hub extension
+   937→  const hub = addShadow(new THREE.Mesh(
+   938→    new THREE.CylinderGeometry(id/2 + 5, id/2 + 5, 10, 32),
+   939→    mat
+   940→  ));
+   941→  hub.rotation.x = Math.PI / 2;
+   942→  hub.position.z = width/2 + 5;
+   943→  group.add(hub);
+   944→
+   945→  // Center bore
+   946→  const bore = new THREE.Mesh(
+   947→    new THREE.CylinderGeometry(id/2, id/2, width + 12, 24),
+   948→    darkMat
+   949→  );
+   950→  bore.rotation.x = Math.PI / 2;
+   951→  bore.position.z = 5;
+   952→  group.add(bore);
+   953→
+   954→  // Keyway
+   955→  const keyway = new THREE.Mesh(
+   956→    new THREE.BoxGeometry(3, 4, width + 12),
+   957→    darkMat
+   958→  );
+   959→  keyway.position.set(id/2 + 1.5, 0, 5);
+   960→  group.add(keyway);
+   961→
+   962→  // Set screws (2)
+   963→  [width/2 + 4, width/2 + 8].forEach((z) => {
+   964→    const ss = new THREE.Mesh(
+   965→      new THREE.CylinderGeometry(1.5, 1.5, 3, 6),
+   966→      darkMat
+   967→    );
+   968→    ss.rotation.x = Math.PI / 2;
+   969→    ss.position.set(id/2 + 5, 0, z);
+   970→    group.add(ss);
+   971→
+   972→    // Hex socket on top
+   973→    const sock = new THREE.Mesh(
+   974→      new THREE.CylinderGeometry(0.8, 0.8, 1, 6),
+   975→      new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.3, roughness: 0.9 })
+   976→    );
+   977→    sock.position.set(id/2 + 5, 2, z);
+   978→    group.add(sock);
+   979→  });
+   980→
+   981→  // Lightening holes in web (3 holes)
+   982→  for (let i = 0; i < 3; i++) {
+   983→    const a = (i / 3) * Math.PI * 2;
+   984→    const hole = new THREE.Mesh(
+   985→      new THREE.CylinderGeometry(4, 4, 4, 16),
+   986→      darkMat
+   987→    );
+   988→    hole.position.set(Math.cos(a) * (od/4), Math.sin(a) * (od/4), 0);
+   989→    group.add(hole);
+   990→  }
+   991→
+   992→  return group;
+   993→}
+   994→
+   995→// ====================== NEW: COMPRESSION SPRING ======================
+   996→export function createSpringGeometry(): THREE.Group {
+   997→  const group = new THREE.Group();
+   998→  const mat = stainless();
+   999→
+  1000→  // Helical spring using TubeGeometry
+  1001→  const wireR = 1.5;
+  1002→  const coilR = 12;
+  1003→  const coils = 8;
+  1004→  const pitch = 4;
+  1005→  const height = coils * pitch;
+  1006→
+  1007→  const path = new THREE.CatmullRomCurve3(
+  1008→    Array.from({ length: coils * 32 + 1 }).map((_, i) => {
+  1009→      const t = i / (coils * 32);
+  1010→      const angle = t * coils * Math.PI * 2;
+  1011→      return new THREE.Vector3(
+  1012→        Math.cos(angle) * coilR,
+  1013→        Math.sin(angle) * coilR,
+  1014→        t * height - height / 2
+  1015→      );
+  1016→    }),
+  1017→    false
+  1018→  );
+  1019→
+  1020→  const springGeom = new THREE.TubeGeometry(path, coils * 32, wireR, 8, false);
+  1021→  const spring = addShadow(new THREE.Mesh(springGeom, mat));
+  1022→  spring.rotation.x = Math.PI / 2;
+  1023→  group.add(spring);
+  1024→
+  1025→  // End caps (flat ground ends)
+  1026→  [height/2, -height/2].forEach((z) => {
+  1027→    const cap = addShadow(new THREE.Mesh(
+  1028→      new THREE.CylinderGeometry(coilR + wireR, coilR + wireR, 0.5, 32),
+  1029→      mat
+  1030→    ));
+  1031→    cap.rotation.x = Math.PI / 2;
+  1032→    cap.position.z = z;
+  1033→    group.add(cap);
+  1034→  });
+  1035→
+  1036→  return group;
+  1037→}
+  1038→
+  1039→// ====================== NEW: CENTRIFUGAL IMPELLER ======================
+  1040→export function createImpellerGeometry(): THREE.Group {
+  1041→  const group = new THREE.Group();
+  1042→  const mat = stainless();
+  1043→  const darkMat = darkSteel();
+  1044→
+  1045→  const od = 60, id = 16, height = 18;
+  1046→
+  1047→  // Back disc (shroud)
+  1048→  const backDisc = addShadow(new THREE.Mesh(
+  1049→    new THREE.CylinderGeometry(od/2, od/2, 3, 48),
+  1050→    mat
+  1051→  ));
+  1052→  backDisc.position.z = -height/2 + 1.5;
+  1053→  group.add(backDisc);
+  1054→
+  1055→  // Hub
+  1056→  const hub = addShadow(new THREE.Mesh(
+  1057→    new THREE.CylinderGeometry(id/2 + 3, id/2 + 3, 12, 32),
+  1058→    mat
+  1059→  ));
+  1060→  hub.position.z = -height/2 + 6;
+  1061→  group.add(hub);
+  1062→
+  1063→  // Center bore
+  1064→  const bore = new THREE.Mesh(
+  1065→    new THREE.CylinderGeometry(id/2, id/2, height + 4, 24),
+  1066→    darkMat
+  1067→  );
+  1068→  group.add(bore);
+  1069→
+  1070→  // Keyway
+  1071→  const keyway = new THREE.Mesh(
+  1072→    new THREE.BoxGeometry(3, 4, height + 4),
+  1073→    darkMat
+  1074→  );
+  1075→  keyway.position.set(id/2 + 1.5, 0, 0);
+  1076→  group.add(keyway);
+  1077→
+  1078→  // Curved blades (7 blades)
+  1079→  const bladeCount = 7;
+  1080→  for (let i = 0; i < bladeCount; i++) {
+  1081→    const a = (i / bladeCount) * Math.PI * 2;
+  1082→
+  1083→    // Create curved blade using ExtrudeGeometry along an arc
+  1084→    const bladeShape = new THREE.Shape();
+  1085→    bladeShape.moveTo(0, 0);
+  1086→    bladeShape.lineTo(0, height - 3);
+  1087→    bladeShape.bezierCurveTo(5, height - 3, 15, height - 3, od/2 - 4, height - 4);
+  1088→    bladeShape.bezierCurveTo(15, height - 6, 5, height - 6, 0, height - 6);
+  1089→    bladeShape.lineTo(0, 0);
+  1090→
+  1091→    const bladeGeom = new THREE.ExtrudeGeometry(bladeShape, {
+  1092→      depth: 1.5, bevelEnabled: false,
+  1093→    });
+  1094→    const blade = addShadow(new THREE.Mesh(bladeGeom, mat));
+  1095→    blade.rotation.z = a;
+  1096→    group.add(blade);
+  1097→  }
+  1098→
+  1099→  // Front shroud ring (partial - open impeller style, just outer ring)
+  1100→  const frontRing = addShadow(new THREE.Mesh(
+  1101→    new THREE.TorusGeometry(od/2 - 2, 1.5, 8, 48),
+  1102→    mat
+  1103→  ));
+  1104→  frontRing.position.z = height/2 - 2;
+  1105→  group.add(frontRing);
+  1106→
+  1107→  // Balance holes (3 holes through back disc)
+  1108→  for (let i = 0; i < 3; i++) {
+  1109→    const a = (i / 3) * Math.PI * 2 + Math.PI / 3;
+  1110→    const hole = new THREE.Mesh(
+  1111→      new THREE.CylinderGeometry(2.5, 2.5, 4, 12),
+  1112→      darkMat
+  1113→    );
+  1114→    hole.position.set(Math.cos(a) * (od/3.5), Math.sin(a) * (od/3.5), -height/2 + 1.5);
+  1115→    group.add(hole);
+  1116→  }
+  1117→
+  1118→  return group;
+  1119→}
+  1120→
+  1121→// ====================== NEW: TURBINE WHEEL ======================
+  1122→export function createTurbineGeometry(): THREE.Group {
+  1123→  const group = new THREE.Group();
+  1124→  const mat = darkSteel();
+  1125→
+  1126→  // Hub (conical back)
+  1127→  const hubGeom = new THREE.CylinderGeometry(8, 14, 12, 32);
+  1128→  const hub = addShadow(new THREE.Mesh(hubGeom, mat));
+  1129→  group.add(hub);
+  1130→
+  1131→  // Nose cone (front)
+  1132→  const nose = addShadow(new THREE.Mesh(
+  1133→    new THREE.ConeGeometry(8, 8, 32),
+  1134→    mat
+  1135→  ));
+  1136→  nose.position.y = 10;
+  1137→  group.add(nose);
+  1138→
+  1139→  // Curved radial blades (10 blades - like turbocharger compressor)
+  1140→  const bladeCount = 10;
+  1141→  for (let i = 0; i < bladeCount; i++) {
+  1142→    const a = (i / bladeCount) * Math.PI * 2;
+  1143→
+  1144→    // Curved blade shape
+  1145→    const bladeShape = new THREE.Shape();
+  1146→    bladeShape.moveTo(0, -6);
+  1147→    bladeShape.quadraticCurveTo(15, -4, 22, 0);
+  1148→    bladeShape.quadraticCurveTo(15, 4, 0, 6);
+  1149→    bladeShape.lineTo(0, -6);
+  1150→
+  1151→    const bladeGeom = new THREE.ExtrudeGeometry(bladeShape, {
+  1152→      depth: 1, bevelEnabled: true, bevelSize: 0.2, bevelThickness: 0.2, bevelSegments: 1,
+  1153→    });
+  1154→    const blade = addShadow(new THREE.Mesh(bladeGeom, mat));
+  1155→    blade.rotation.y = a;
+  1156→    blade.rotation.x = Math.PI / 2;
+  1157→    blade.position.y = 0;
+  1158→    group.add(blade);
+  1159→  }
+  1160→
+  1161→  // Back disc
+  1162→  const backDisc = addShadow(new THREE.Mesh(
+  1163→    new THREE.CylinderGeometry(22, 22, 2, 48),
+  1164→    mat
+  1165→  ));
+  1166→  backDisc.position.y = -6;
+  1167→  group.add(backDisc);
+  1168→
+  1169→  // Center bore
+  1170→  const bore = new THREE.Mesh(
+  1171→    new THREE.CylinderGeometry(4, 4, 16, 16),
+  1172→    new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.5, roughness: 0.7 })
+  1173→  );
+  1174→  group.add(bore);
+  1175→
+  1176→  return group;
+  1177→}
+  1178→
+  1179→// ====================== NEW: ROBOTIC ARM SEGMENT ======================
+  1180→export function createRoboticArmGeometry(): THREE.Group {
+  1181→  const group = new THREE.Group();
+  1182→  const mat = metal(0xf59e0b, 0.7, 0.4);  // industrial orange/yellow
+  1183→  const darkMat = darkSteel();
+  1184→  const jointMat = metal(0x475569, 0.85, 0.25);
+  1185→
+  1186→  // Base joint (cylinder)
+  1187→  const base = addShadow(new THREE.Mesh(
+  1188→    new THREE.CylinderGeometry(14, 16, 8, 32),
+  1189→    jointMat
+  1190→  ));
+  1191→  base.position.y = -20;
+  1192→  group.add(base);
+  1193→
+  1194→  // Base mounting flange
+  1195→  const flange = addShadow(new THREE.Mesh(
+  1196→    new THREE.CylinderGeometry(18, 18, 2, 32),
+  1197→    jointMat
+  1198→  ));
+  1199→  flange.position.y = -24;
+  1200→  group.add(flange);
+  1201→
+  1202→  // Mounting bolts on flange (6)
+  1203→  for (let i = 0; i < 6; i++) {
+  1204→    const a = (i / 6) * Math.PI * 2;
+  1205→    const bolt = new THREE.Mesh(
+  1206→      new THREE.CylinderGeometry(1.5, 1.5, 2, 8),
+  1207→      darkMat
+  1208→    );
+  1209→    bolt.position.set(Math.cos(a) * 14, -25, Math.sin(a) * 14);
+  1210→    group.add(bolt);
+  1211→  }
+  1212→
+  1213→  // Lower arm segment (curved)
+  1214→  const armShape = new THREE.Shape();
+  1215→  armShape.moveTo(-8, 0);
+  1216→  armShape.lineTo(-6, 18);
+  1217→  armShape.quadraticCurveTo(-4, 20, 0, 20);
+  1218→  armShape.quadraticCurveTo(4, 20, 6, 18);
+  1219→  armShape.lineTo(8, 0);
+  1220→  armShape.lineTo(-8, 0);
+  1221→  const armGeom = new THREE.ExtrudeGeometry(armShape, {
+  1222→    depth: 12, bevelEnabled: true, bevelSize: 0.5, bevelThickness: 0.5, bevelSegments: 2,
+  1223→  });
+  1224→  armGeom.center();
+  1225→  const arm = addShadow(new THREE.Mesh(armGeom, mat));
+  1226→  arm.position.y = -5;
+  1227→  arm.rotation.y = Math.PI / 2;
+  1228→  group.add(arm);
+  1229→
+  1230→  // Joint pivot (where arm rotates)
+  1231→  const pivot = addShadow(new THREE.Mesh(
+  1232→    new THREE.CylinderGeometry(5, 5, 16, 24),
+  1233→    darkMat
+  1234→  ));
+  1235→  pivot.rotation.x = Math.PI / 2;
+  1236→  pivot.position.y = -20;
+  1237→  group.add(pivot);
+  1238→
+  1239→  // Joint caps
+  1240→  [-7, 7].forEach((z) => {
+  1241→    const cap = addShadow(new THREE.Mesh(
+  1242→      new THREE.CylinderGeometry(7, 7, 1.5, 24),
+  1243→      jointMat
+  1244→    ));
+  1245→    cap.rotation.x = Math.PI / 2;
+  1246→    cap.position.set(0, -20, z);
+  1247→    group.add(cap);
+  1248→  });
+  1249→
+  1250→  // Wrist joint at end
+  1251→  const wrist = addShadow(new THREE.Mesh(
+  1252→    new THREE.CylinderGeometry(8, 10, 6, 32),
+  1253→    jointMat
+  1254→  ));
+  1255→  wrist.position.y = 18;
+  1256→  group.add(wrist);
+  1257→
+  1258→  // Tool mounting flange (ISO 9409-style)
+  1259→  const toolFlange = addShadow(new THREE.Mesh(
+  1260→    new THREE.CylinderGeometry(12, 12, 2, 32),
+  1261→    jointMat
+  1262→  ));
+  1263→  toolFlange.position.y = 22;
+  1264→  group.add(toolFlange);
+  1265→
+  1266→  // Tool mounting bolts (6 around)
+  1267→  for (let i = 0; i < 6; i++) {
+  1268→    const a = (i / 6) * Math.PI * 2;
+  1269→    const bolt = new THREE.Mesh(
+  1270→      new THREE.CylinderGeometry(1.2, 1.2, 2, 8),
+  1271→      darkMat
+  1272→    );
+  1273→    bolt.position.set(Math.cos(a) * 9, 23, Math.sin(a) * 9);
+  1274→    group.add(bolt);
+  1275→  }
+  1276→
+  1277→  // Center bore for cable routing
+  1278→  const cableHole = new THREE.Mesh(
+  1279→    new THREE.CylinderGeometry(3, 3, 40, 16),
+  1280→    new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.3, roughness: 0.9 })
+  1281→  );
+  1282→  group.add(cableHole);
+  1283→
+  1284→  // Cable bundle (visible at base)
+  1285→  for (let i = 0; i < 4; i++) {
+  1286→    const a = (i / 4) * Math.PI * 2;
+  1287→    const cable = new THREE.Mesh(
+  1288→      new THREE.CylinderGeometry(0.8, 0.8, 30, 8),
+  1289→      new THREE.MeshStandardMaterial({
+  1290→        color: [0x000000, 0xff0000, 0x00ff00, 0x0000ff][i],
+  1291→        metalness: 0.1, roughness: 0.7
+  1292→      })
+  1293→    );
+  1294→    cable.position.set(Math.cos(a) * 1.5, -5, Math.sin(a) * 1.5);
+  1295→    group.add(cable);
+  1296→  }
+  1297→
+  1298→  return group;
+  1299→}
+  1300→
+  1301→// ====================== NEW: BRACKET (sheet metal) ======================
+  1302→export function createBracketGeometry(): THREE.Group {
+  1303→  const group = new THREE.Group();
+  1304→  const mat = aluminum();
+  1305→
+  1306→  // L-bracket shape via extrusion
+  1307→  const shape = new THREE.Shape();
+  1308→  shape.moveTo(0, 0);
+  1309→  shape.lineTo(60, 0);
+  1310→  shape.lineTo(60, 4);
+  1311→  shape.lineTo(4, 4);
+  1312→  shape.lineTo(4, 40);
+  1313→  shape.lineTo(0, 40);
+  1314→  shape.lineTo(0, 0);
+  1315→
+  1316→  const bracketGeom = new THREE.ExtrudeGeometry(shape, {
+  1317→    depth: 30, bevelEnabled: false,
+  1318→  });
+  1319→  const bracket = addShadow(new THREE.Mesh(bracketGeom, mat));
+  1320→  group.add(bracket);
+  1321→
+  1322→  // Mounting holes on horizontal flange
+  1323→  [[15, 2, 15], [45, 2, 15]].forEach(([x, y, z]) => {
+  1324→    const hole = new THREE.Mesh(
+  1325→      new THREE.CylinderGeometry(2.5, 2.5, 6, 16),
+  1326→      new THREE.MeshStandardMaterial({ color: 0x111, metalness: 0.5, roughness: 0.7 })
+  1327→    );
+  1328→    hole.position.set(x, y, z);
+  1329→    hole.rotation.x = Math.PI / 2;
+  1330→    group.add(hole);
+  1331→  });
+  1332→
+  1333→  // Mounting holes on vertical flange
+  1334→  [[2, 12, 15], [2, 28, 15]].forEach(([x, y, z]) => {
+  1335→    const hole = new THREE.Mesh(
+  1336→      new THREE.CylinderGeometry(2.5, 2.5, 6, 16),
+  1337→      new THREE.MeshStandardMaterial({ color: 0x111, metalness: 0.5, roughness: 0.7 })
+  1338→    );
+  1339→    hole.position.set(x, y, z);
+  1340→    hole.rotation.z = Math.PI / 2;
+  1341→    group.add(hole);
+  1342→  });
+  1343→
+  1344→  // Bend relief (small notch at corner)
+  1345→  const relief = new THREE.Mesh(
+  1346→    new THREE.BoxGeometry(2, 2, 30),
+  1347→    new THREE.MeshStandardMaterial({ color: 0x000, metalness: 0.3, roughness: 0.8 })
+  1348→  );
+  1349→  relief.position.set(3, 3, 15);
+  1350→  group.add(relief);
+  1351→
+  1352→  // Stiffening rib along vertical
+  1353→  const rib = addShadow(new THREE.Mesh(
+  1354→    new THREE.BoxGeometry(1.5, 30, 4),
+  1355→    mat
+  1356→  ));
+  1357→  rib.position.set(7, 20, 15);
+  1358→  group.add(rib);
+  1359→
+  1360→  return group;
+  1361→}
+  1362→
+  1363→// ====================== NEW: HEAT SINK ======================
+  1364→export function createHeatSinkGeometry(): THREE.Group {
+  1365→  const group = new THREE.Group();
+  1366→  const mat = aluminum();
+  1367→
+  1368→  // Base plate
+  1369→  const base = addShadow(new THREE.Mesh(
+  1370→    new THREE.BoxGeometry(60, 4, 40),
+  1371→    mat
+  1372→  ));
+  1373→  base.position.y = -2;
+  1374→  group.add(base);
+  1375→
+  1376→  // Cooling fins (15 vertical fins)
+  1377→  const finCount = 15;
+  1378→  for (let i = 0; i < finCount; i++) {
+  1379→    const x = -28 + i * 4;
+  1380→    const fin = addShadow(new THREE.Mesh(
+  1381→      new THREE.BoxGeometry(1.5, 20, 36),
+  1382→      mat
+  1383→    ));
+  1384→    fin.position.set(x, 10, 0);
+  1385→    group.add(fin);
+  1386→  }
+  1387→
+  1388→  // Heat pipes (3 copper U-tubes)
+  1389→  const pipeMat = brass();
+  1390→  for (let i = 0; i < 3; i++) {
+  1391→    const z = -10 + i * 10;
+  1392→    // Horizontal part on top
+  1393→    const top = addShadow(new THREE.Mesh(
+  1394→      new THREE.CylinderGeometry(1.5, 1.5, 30, 12),
+  1395→      pipeMat
+  1396→    ));
+  1397→    top.rotation.z = Math.PI / 2;
+  1398→    top.position.set(0, 20, z);
+  1399→    group.add(top);
+  1400→
+  1401→    // Two vertical legs
+  1402→    [-15, 15].forEach((x) => {
+  1403→      const leg = addShadow(new THREE.Mesh(
+  1404→        new THREE.CylinderGeometry(1.5, 1.5, 22, 12),
+  1405→        pipeMat
+  1406→      ));
+  1407→      leg.position.set(x, 10, z);
+  1408→      group.add(leg);
+  1409→
+  1410→      // Bend radius
+  1411→      const bend = addShadow(new THREE.Mesh(
+  1412→        new THREE.TorusGeometry(1.5, 1.5, 8, 12, Math.PI / 2),
+  1413→        pipeMat
+  1414→      ));
+  1415→      bend.position.set(x, 20, z);
+  1416→      bend.rotation.y = Math.PI / 2;
+  1417→      bend.rotation.x = -Math.PI / 2;
+  1418→      group.add(bend);
+  1419→    });
+  1420→  }
+  1421→
+  1422→  // Thermal compound (dark patch on base bottom)
+  1423→  const compound = new THREE.Mesh(
+  1424→    new THREE.BoxGeometry(20, 0.5, 20),
+  1425→    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.3, roughness: 0.8 })
+  1426→  );
+  1427→  compound.position.y = -4;
+  1428→  group.add(compound);
+  1429→
+  1430→  return group;
+  1431→}
+  1432→
+  1433→// ====================== NEW: CYLINDER HEAD ======================
+  1434→export function createCylinderHeadGeometry(): THREE.Group {
+  1435→  const group = new THREE.Group();
+  1436→  const mat = aluminum();
+  1437→  const darkMat = darkSteel();
+  1438→  const brassMat = brass();
+  1439→
+  1440→  // Main block
+  1441→  const block = addShadow(new THREE.Mesh(
+  1442→    new THREE.BoxGeometry(80, 30, 50),
+  1443→    mat
+  1444→  ));
+  1445→  group.add(block);
+  1446→
+  1447→  // Top fins (cooling fins)
+  1448→  for (let i = 0; i < 8; i++) {
+  1449→    const fin = addShadow(new THREE.Mesh(
+  1450→      new THREE.BoxGeometry(82, 2, 50),
+  1451→      mat
+  1452→    ));
+  1453→    fin.position.y = 16 + i * 3;
+  1454→    group.add(fin);
+  1455→  }
+  1456→
+  1457→  // Combustion chamber (4 cylinders - inline)
+  1458→  for (let i = 0; i < 4; i++) {
+  1459→    const x = -30 + i * 20;
+  1460→
+  1461→    // Spark plug well
+  1462→    const well = addShadow(new THREE.Mesh(
+  1463→      new THREE.CylinderGeometry(6, 6, 25, 24),
+  1464→      mat
+  1465→    ));
+  1466→    well.position.set(x, 12, 0);
+  1467→    group.add(well);
+  1468→
+  1469→    // Spark plug
+  1470→    const plugBody = addShadow(new THREE.Mesh(
+  1471→      new THREE.CylinderGeometry(4, 4, 12, 6),
+  1472→      brassMat
+  1473→    ));
+  1474→    plugBody.position.set(x, 22, 0);
+  1475→    group.add(plugBody);
+  1476→
+  1477→    // Plug ceramic
+  1478→    const ceramic = addShadow(new THREE.Mesh(
+  1479→      new THREE.CylinderGeometry(3, 3, 8, 16),
+  1480→      new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.1, roughness: 0.7 })
+  1481→    ));
+  1482→    ceramic.position.set(x, 30, 0);
+  1483→    group.add(ceramic);
+  1484→
+  1485→    // Plug terminal
+  1486→    const terminal = addShadow(new THREE.Mesh(
+  1487→      new THREE.CylinderGeometry(1, 1, 4, 8),
+  1488→      brassMat
+  1489→    ));
+  1490→    terminal.position.set(x, 35, 0);
+  1491→    group.add(terminal);
+  1492→
+  1493→    // Cylinder bore (visible from below)
+  1494→    const bore = new THREE.Mesh(
+  1495→      new THREE.CylinderGeometry(10, 10, 12, 32),
+  1496→      darkMat
+  1497→    );
+  1498→    bore.position.set(x, -15, 0);
+  1499→    group.add(bore);
+  1500→  }
+  1501→
+  1502→  // Intake ports (4 tubes on one side)
+  1503→  for (let i = 0; i < 4; i++) {
+  1504→    const x = -30 + i * 20;
+  1505→    const port = addShadow(new THREE.Mesh(
+  1506→      new THREE.CylinderGeometry(5, 5, 12, 16),
+  1507→      mat
+  1508→    ));
+  1509→    port.rotation.z = Math.PI / 2;
+  1510→    port.position.set(x, 5, -28);
+  1511→    group.add(port);
+  1512→
+  1513→    // Port flange
+  1514→    const flange = addShadow(new THREE.Mesh(
+  1515→      new THREE.BoxGeometry(8, 10, 2),
+  1516→      mat
+  1517→    ));
+  1518→    flange.position.set(x, 5, -32);
+  1519→    group.add(flange);
+  1520→  }
+  1521→
+  1522→  // Exhaust ports (other side)
+  1523→  for (let i = 0; i < 4; i++) {
+  1524→    const x = -30 + i * 20;
+  1525→    const port = addShadow(new THREE.Mesh(
+  1526→      new THREE.CylinderGeometry(5, 5, 12, 16),
+  1527→      darkMat
+  1528→    ));
+  1529→    port.rotation.z = Math.PI / 2;
+  1530→    port.position.set(x, 5, 28);
+  1531→    group.add(port);
+  1532→
+  1533→    const flange = addShadow(new THREE.Mesh(
+  1534→      new THREE.BoxGeometry(8, 10, 2),
+  1535→      darkMat
+  1536→    ));
+  1537→    flange.position.set(x, 5, 32);
+  1538→    group.add(flange);
+  1539→  }
+  1540→
+  1541→  // Bolt holes around perimeter (top)
+  1542→  for (let i = 0; i < 6; i++) {
+  1543→    const x = -35 + i * 14;
+  1544→    [22, -22].forEach((z) => {
+  1545→      const hole = new THREE.Mesh(
+  1546→        new THREE.CylinderGeometry(2, 2, 6, 8),
+  1547→        darkMat
+  1548→      );
+  1549→      hole.position.set(x, 15, z);
+  1550→      group.add(hole);
+  1551→
+  1552→      // Bolt
+  1553→      const bolt = addShadow(new THREE.Mesh(
+  1554→        new THREE.CylinderGeometry(2.5, 2.5, 4, 6),
+  1555→        darkMat
+  1556→      ));
+  1557→      bolt.position.set(x, 17, z);
+  1558→      group.add(bolt);
+  1559→    });
+  1560→  }
+  1561→
+  1562→  // Camshaft covers (top, decorative)
+  1563→  const cover = addShadow(new THREE.Mesh(
+  1564→    new THREE.BoxGeometry(70, 6, 30),
+  1565→    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.6, roughness: 0.4 })
+  1566→  ));
+  1567→  cover.position.y = 12;
+  1568→  group.add(cover);
+  1569→
+  1570→  return group;
+  1571→}
+  1572→
+  1573→// ====================== NEW: PROPELLER ======================
+  1574→export function createPropellerGeometry(): THREE.Group {
+  1575→  const group = new THREE.Group();
+  1576→  const mat = brass();
+  1577→  const darkMat = darkSteel();
+  1578→
+  1579→  // Hub
+  1580→  const hub = addShadow(new THREE.Mesh(
+  1581→    new THREE.CylinderGeometry(8, 10, 16, 24),
+  1582→    mat
+  1583→  ));
+  1584→  group.add(hub);
+  1585→
+  1586→  // Tapered nose
+  1587→  const nose = addShadow(new THREE.Mesh(
+  1588→    new THREE.ConeGeometry(8, 8, 24),
+  1589→    mat
+  1590→  ));
+  1591→  nose.position.y = 12;
+  1592→  group.add(nose);
+  1593→
+  1594→  // 3 blades with twisted airfoil shape
+  1595→  const bladeCount = 3;
+  1596→  for (let i = 0; i < bladeCount; i++) {
+  1597→    const a = (i / bladeCount) * Math.PI * 2;
+  1598→    const bladeGroup = new THREE.Group();
+  1599→
+  1600→    // Blade shape - airfoil-like
+  1601→    const bladeShape = new THREE.Shape();
+  1602→    bladeShape.moveTo(0, -2);
+  1603→    bladeShape.quadraticCurveTo(20, -3, 40, -1);
+  1604→    bladeShape.quadraticCurveTo(45, 0, 40, 1);
+  1605→    bladeShape.quadraticCurveTo(20, 3, 0, 2);
+  1606→    bladeShape.lineTo(0, -2);
+  1607→
+  1608→    const bladeGeom = new THREE.ExtrudeGeometry(bladeShape, {
+  1609→      depth: 1.5,
+  1610→      bevelEnabled: true,
+  1611→      bevelSize: 0.3,
+  1612→      bevelThickness: 0.3,
+  1613→      bevelSegments: 2,
+  1614→    });
+  1615→
+  1616→    const blade = addShadow(new THREE.Mesh(bladeGeom, mat));
+  1617→    blade.position.y = -0.75;
+  1618→    bladeGroup.add(blade);
+  1619→
+  1620→    // Pitch twist (rotate blade along its length using 3 sub-sections)
+  1621→    // Approximated by adding 2 additional twisted blade segments
+  1622→    const tip = addShadow(new THREE.Mesh(
+  1623→      new THREE.BoxGeometry(8, 1.5, 8),
+  1624→      mat
+  1625→    ));
+  1626→    tip.position.set(40, 0, 0);
+  1627→    tip.rotation.y = Math.PI / 6;
+  1628→    bladeGroup.add(tip);
+  1629→
+  1630→    bladeGroup.rotation.y = a;
+  1631→    group.add(bladeGroup);
+  1632→  }
+  1633→
+  1634→  // Center bore
+  1635→  const bore = new THREE.Mesh(
+  1636→    new THREE.CylinderGeometry(4, 4, 24, 16),
+  1637→    darkMat
+  1638→  );
+  1639→  group.add(bore);
+  1640→
+  1641→  // Keyway
+  1642→  const keyway = new THREE.Mesh(
+  1643→    new THREE.BoxGeometry(2, 24, 3),
+  1644→    darkMat
+  1645→  );
+  1646→  keyway.position.set(4, 0, 0);
+  1647→  group.add(keyway);
+  1648→
+  1649→  // Pitch adjustment bolts (3 around hub)
+  1650→  for (let i = 0; i < 3; i++) {
+  1651→    const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
+  1652→    const bolt = new THREE.Mesh(
+  1653→      new THREE.CylinderGeometry(1.5, 1.5, 3, 8),
+  1654→      darkMat
+  1655→    );
+  1656→    bolt.position.set(Math.cos(a) * 6, 0, Math.sin(a) * 6);
+  1657→    bolt.rotation.z = Math.PI / 2;
+  1658→    bolt.rotation.y = a;
+  1659→    group.add(bolt);
+  1660→  }
+  1661→
+  1662→  return group;
+  1663→}
+  1664→
+  1665→// ====================== ENGINE BLOCK (inline-4) ======================
+  1666→export function createEngineBlockGeometry(): THREE.Group {
+  1667→  const group = new THREE.Group();
+  1668→  const mat = aluminum();
+  1669→  const darkMat = darkSteel();
+  1670→  const castMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, metalness: 0.5, roughness: 0.7 });
+  1671→
+  1672→  const blockL = 200, blockH = 80, blockW = 100;
+  1673→  const cylBore = 35;       // cylinder bore diameter
+  1674→  const cylSpacing = 45;    // distance between cylinder centers
+  1675→  const cylCount = 4;
+  1676→  const deckH = blockH / 2; // top deck height
+  1677→
+  1678→  // --- Main block body ---
+  1679→  const block = addShadow(new THREE.Mesh(
+  1680→    new THREE.BoxGeometry(blockL, blockH, blockW),
+  1681→    castMat
+  1682→  ));
+  1683→  group.add(block);
+  1684→
+  1685→  // --- Cylinder bores (visible dark holes on top deck) ---
+  1686→  for (let i = 0; i < cylCount; i++) {
+  1687→    const x = -((cylCount - 1) * cylSpacing) / 2 + i * cylSpacing;
+  1688→
+  1689→    // Bore hole (dark cylinder going down)
+  1690→    const bore = new THREE.Mesh(
+  1691→      new THREE.CylinderGeometry(cylBore / 2, cylBore / 2, blockH + 2, 36),
+  1692→      new THREE.MeshStandardMaterial({ color: 0x14161a, metalness: 0.6, roughness: 0.5 })
+  1693→    );
+  1694→    bore.position.set(x, 0, 0);
+  1695→    group.add(bore);
+  1696→
+  1697→    // Bore sleeve (lighter cylinder liner)
+  1698→    const liner = addShadow(new THREE.Mesh(
+  1699→      new THREE.CylinderGeometry(cylBore / 2 + 2, cylBore / 2 + 2, blockH - 4, 36),
+  1700→      new THREE.MeshStandardMaterial({ color: 0x9aa3b0, metalness: 0.7, roughness: 0.3 })
+  1701→    ));
+  1702→    liner.position.set(x, 0, 0);
+  1703→    group.add(liner);
+  1704→
+  1705→    // Top deck reinforcement ring
+  1706→    const ring = addShadow(new THREE.Mesh(
+  1707→      new THREE.TorusGeometry(cylBore / 2 + 3, 1.5, 8, 32),
+  1708→      mat
+  1709→    ));
+  1710→    ring.position.set(x, deckH, 0);
+  1711→    ring.rotation.x = Math.PI / 2;
+  1712→    group.add(ring);
+  1713→  }
+  1714→
+  1715→  // --- Main bearing saddles (crankshaft supports - 5 of them) ---
+  1716→  const mainBearingCount = 5;
+  1717→  const mainBearingR = 12;
+  1718→  const mainBearingSpacing = (blockL - 30) / (mainBearingCount - 1);
+  1719→  for (let i = 0; i < mainBearingCount; i++) {
+  1720→    const x = -blockL / 2 + 15 + i * mainBearingSpacing;
+  1721→
+  1722→    // Saddle (half-circle cap on bottom)
+  1723→    const saddle = addShadow(new THREE.Mesh(
+  1724→      new THREE.CylinderGeometry(mainBearingR + 4, mainBearingR + 4, 24, 24, 1, false, 0, Math.PI),
+  1725→      mat
+  1726→    ));
+  1727→    saddle.rotation.z = Math.PI;
+  1728→    saddle.rotation.y = Math.PI / 2;
+  1729→    saddle.position.set(x, -blockH / 2 - 4, 0);
+  1730→    group.add(saddle);
+  1731→
+  1732→    // Bearing bore (dark)
+  1733→    const bore = new THREE.Mesh(
+  1734→      new THREE.CylinderGeometry(mainBearingR, mainBearingR, 26, 24),
+  1735→      darkMat
+  1736→    );
+  1737→    bore.rotation.z = Math.PI / 2;
+  1738→    bore.position.set(x, -blockH / 2 - 4, 0);
+  1739→    group.add(bore);
+  1740→
+  1741→    // Bearing cap bolts (2 per saddle)
+  1742→    [-10, 10].forEach((z) => {
+  1743→      const bolt = addShadow(new THREE.Mesh(
+  1744→        new THREE.CylinderGeometry(1.5, 1.5, 4, 8),
+  1745→        darkMat
+  1746→      ));
+  1747→      bolt.position.set(x, -blockH / 2 - 4, z);
+  1748→      group.add(bolt);
+  1749→    });
+  1750→  }
+  1751→
+  1752→  // --- Water jacket ports (side passages) ---
+  1753→  for (let i = 0; i < 4; i++) {
+  1754→    const x = -((cylCount - 1) * cylSpacing) / 2 + i * cylSpacing;
+  1755→    // Water port on each side
+  1756→    [-1, 1].forEach((side) => {
+  1757→      const port = addShadow(new THREE.Mesh(
+  1758→        new THREE.CylinderGeometry(5, 5, 8, 16),
+  1759→        mat
+  1760→      ));
+  1761→      port.rotation.z = Math.PI / 2;
+  1762→      port.position.set(x, 10, side * (blockW / 2 + 2));
+  1763→      group.add(port);
+  1764→    });
+  1765→  }
+  1766→
+  1767→  // --- Oil return passages (bottom) ---
+  1768→  for (let i = 0; i < 3; i++) {
+  1769→    const x = -50 + i * 50;
+  1770→    const drain = new THREE.Mesh(
+  1771→      new THREE.CylinderGeometry(4, 4, 8, 12),
+  1772→      darkMat
+  1773→    );
+  1774→    drain.position.set(x, -blockH / 2 - 2, 0);
+  1775→    group.add(drain);
+  1776→  }
+  1777→
+  1778→  // --- Oil pan mounting flange (bottom) ---
+  1779→  const panFlange = addShadow(new THREE.Mesh(
+  1780→    new THREE.BoxGeometry(blockL + 10, 4, blockW + 10),
+  1781→    mat
+  1782→  ));
+  1783→  panFlange.position.y = -blockH / 2 - 12;
+  1784→  group.add(panFlange);
+  1785→
+  1786→  // Pan flange bolt holes (around perimeter)
+  1787→  for (let i = 0; i < 8; i++) {
+  1788→    const x = -blockL / 2 + 10 + i * (blockL - 20) / 7;
+  1789→    [-1, 1].forEach((side) => {
+  1790→      const hole = new THREE.Mesh(
+  1791→        new THREE.CylinderGeometry(2, 2, 8, 10),
+  1792→        darkMat
+  1793→      );
+  1794→      hole.position.set(x, -blockH / 2 - 12, side * (blockW / 2 + 4));
+  1795→      group.add(hole);
+  1796→    });
+  1797→  }
+  1798→
+  1799→  // --- Head mounting bolts (top perimeter) ---
+  1800→  for (let i = 0; i < 10; i++) {
+  1801→    const x = -blockL / 2 + 15 + i * (blockL - 30) / 9;
+  1802→    [-1, 1].forEach((side) => {
+  1803→      const bolt = addShadow(new THREE.Mesh(
+  1804→        new THREE.CylinderGeometry(2, 2, 6, 8),
+  1805→        darkMat
+  1806→      ));
+  1807→      bolt.position.set(x, deckH + 2, side * (blockW / 2 - 6));
+  1808→      group.add(bolt);
+  1809→    });
+  1810→  }
+  1811→
+  1812→  // --- Front cover mounting face (with crank snout bore) ---
+  1813→  const frontCover = addShadow(new THREE.Mesh(
+  1814→    new THREE.BoxGeometry(6, blockH - 10, blockW - 6),
+  1815→    mat
+  1816→  ));
+  1817→  frontCover.position.set(-blockL / 2 - 3, 0, 0);
+  1818→  group.add(frontCover);
+  1819→
+  1820→  // Crank snout bore
+  1821→  const snoutBore = new THREE.Mesh(
+  1822→    new THREE.CylinderGeometry(7, 7, 8, 16),
+  1823→    darkMat
+  1824→  );
+  1825→  snoutBore.rotation.z = Math.PI / 2;
+  1826→  snoutBore.position.set(-blockL / 2 - 3, -blockH / 2 - 4, 0);
+  1827→  group.add(snoutBore);
+  1828→
+  1829→  // --- Rear main seal mount (back face, where flywheel goes) ---
+  1830→  const rearSeal = addShadow(new THREE.Mesh(
+  1831→    new THREE.CylinderGeometry(20, 20, 6, 32),
+  1832→    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.3, roughness: 0.8 })
+  1833→  ));
+  1834→  rearSeal.rotation.z = Math.PI / 2;
+  1835→  rearSeal.position.set(blockL / 2 + 4, -blockH / 2 - 4, 0);
+  1836→  group.add(rearSeal);
+  1837→
+  1838→  // --- Engine mount lugs (sides) ---
+  1839→  [-1, 1].forEach((side) => {
+  1840→    const lug = addShadow(new THREE.Mesh(
+  1841→      new THREE.BoxGeometry(30, 8, 14),
+  1842→      mat
+  1843→    ));
+  1844→    lug.position.set(0, -blockH / 2 - 18, side * (blockW / 2 + 8));
+  1845→    group.add(lug);
+  1846→
+  1847→    // Mount bolt hole
+  1848→    const hole = new THREE.Mesh(
+  1849→      new THREE.CylinderGeometry(3, 3, 10, 12),
+  1850→      darkMat
+  1851→    );
+  1852→    hole.position.set(0, -blockH / 2 - 20, side * (blockW / 2 + 8));
+  1853→    group.add(hole);
+  1854→  });
+  1855→
+  1856→  // --- Side casting details (ribbing) ---
+  1857→  for (let i = 0; i < 6; i++) {
+  1858→    const y = -blockH / 2 + 12 + i * 10;
+  1859→    [-1, 1].forEach((side) => {
+  1860→      const rib = addShadow(new THREE.Mesh(
+  1861→        new THREE.BoxGeometry(blockL - 20, 1.5, 1),
+  1862→        castMat
+  1863→      ));
+  1864→      rib.position.set(0, y, side * (blockW / 2 + 0.5));
+  1865→      group.add(rib);
+  1866→    });
+  1867→  }
+  1868→
+  1869→  return group;
+  1870→}
+  1871→
+  1872→// ====================== CRANKSHAFT (inline-4 with throws) ======================
+  1873→export function createCrankshaftGeometry(): THREE.Group {
+  1874→  const group = new THREE.Group();
+  1875→  const mat = steel();
+  1876→  const darkMat = darkSteel();
+  1877→
+  1878→  // Crank axis = X axis
+  1879→  // 5 main journals + 4 crank pins (offset for stroke)
+  1880→  const mainR = 12;
+  1881→  const mainW = 18;
+  1882→  const pinR = 11;
+  1883→  const pinW = 22;
+  1884→  const stroke = 40;     // total stroke
+  1885→  const crankOffset = stroke / 2;
+  1886→  const mainSpacing = 42;
+  1887→
+  1888→  // Compute X positions for 5 main journals
+  1889→  const mainsX: number[] = [];
+  1890→  for (let i = 0; i < 5; i++) mainsX.push(-(mainSpacing * 2) + i * mainSpacing);
+  1891→
+  1892→  // Compute X positions for 4 crank pins (between mains)
+  1893→  const pinsX: number[] = [];
+  1894→  for (let i = 0; i < 4; i++) pinsX.push((mainsX[i] + mainsX[i + 1]) / 2);
+  1895→
+  1896→  // Crank throws: pins 1&4 at +offset, pins 2&3 at -offset (180° plane for inline-4)
+  1897→  const pinOffsets = [crankOffset, -crankOffset, -crankOffset, crankOffset];
+  1898→
+  1899→  // --- Main journals ---
+  1900→  mainsX.forEach((x) => {
+  1901→    const journal = addShadow(new THREE.Mesh(
+  1902→      new THREE.CylinderGeometry(mainR, mainR, mainW, 32),
+  1903→      mat
+  1904→    ));
+  1905→    journal.rotation.z = Math.PI / 2;
+  1906→    journal.position.set(x, 0, 0);
+  1907→    group.add(journal);
+  1908→
+  1909→    // Oil groove (decorative ring)
+  1910→    const groove = new THREE.Mesh(
+  1911→      new THREE.TorusGeometry(mainR - 1, 0.4, 6, 32),
+  1912→      darkMat
+  1913→    );
+  1914→    groove.rotation.y = Math.PI / 2;
+  1915→    groove.position.x = x;
+  1916→    group.add(groove);
+  1917→
+  1918→    // Oil hole (radial)
+  1919→    const oilHole = new THREE.Mesh(
+  1920→      new THREE.CylinderGeometry(1.5, 1.5, mainR * 2 + 2, 8),
+  1921→      darkMat
+  1922→    );
+  1923→    oilHole.position.set(x, 0, 0);
+  1924→    group.add(oilHole);
+  1925→  });
+  1926→
+  1927→  // --- Crank pins (with counterweights) ---
+  1928→  pinsX.forEach((x, i) => {
+  1929→    const offset = pinOffsets[i];
+  1930→
+  1931→    // Crank pin
+  1932→    const pin = addShadow(new THREE.Mesh(
+  1933→      new THREE.CylinderGeometry(pinR, pinR, pinW, 28),
+  1934→      mat
+  1935→    ));
+  1936→    pin.rotation.z = Math.PI / 2;
+  1937→    pin.position.set(x, offset, 0);
+  1938→    group.add(pin);
+  1939→
+  1940→    // Counterweight (web between main and pin) - two webs per pin
+  1941→    [-(mainW / 2 + pinW / 2), (mainW / 2 + pinW / 2)].forEach((dx) => {
+  1942→      // Web is a slab that extends from main journal to pin
+  1943→      const webShape = new THREE.Shape();
+  1944→      const webR = 28;
+  1945→      // Half-circle on the pin side
+  1946→      webShape.moveTo(-pinW / 2, 0);
+  1947→      webShape.lineTo(-pinW / 2, offset - Math.sign(offset) * 4);
+  1948→      webShape.absarc(0, offset, 4 + pinW / 2, Math.PI / 2 + (offset > 0 ? 0 : Math.PI), -Math.PI / 2 + (offset > 0 ? 0 : Math.PI), offset < 0);
+  1949→      webShape.lineTo(pinW / 2, 0);
+  1950→      // Main journal side curve
+  1951→      webShape.absarc(0, 0, mainR + 8, 0, Math.PI, true);
+  1952→      // Counterweight extends opposite side of pin
+  1953→      webShape.lineTo(-webR, -Math.sign(offset) * (webR - 5));
+  1954→      webShape.absarc(0, -Math.sign(offset) * (offset * 2), webR, Math.PI, 0, offset > 0);
+  1955→      webShape.lineTo(-pinW / 2, 0);
+  1956→
+  1957→      const webGeom = new THREE.ExtrudeGeometry(webShape, {
+  1958→        depth: 4, bevelEnabled: true, bevelSize: 0.5, bevelThickness: 0.5, bevelSegments: 1,
+  1959→      });
+  1960→      webGeom.center();
+  1961→      const web = addShadow(new THREE.Mesh(webGeom, mat));
+  1962→      web.position.set(x + dx, 0, 0);
+  1963→      web.rotation.y = Math.PI / 2;
+  1964→      group.add(web);
+  1965→    });
+  1966→
+  1967→    // Oil drilling (diagonal hole from main to pin - simplified)
+  1968→    const oilDrill = new THREE.Mesh(
+  1969→      new THREE.CylinderGeometry(1, 1, 30, 8),
+  1970→      darkMat
+  1971→    );
+  1972→    oilDrill.position.set(x, offset / 2, 0);
+  1973→    oilDrill.rotation.z = Math.atan2(offset, 0) + Math.PI / 2;
+  1974→    group.add(oilDrill);
+  1975→  });
+  1976→
+  1977→  // --- Crank snout (front - accessory drive) ---
+  1978→  const snout = addShadow(new THREE.Mesh(
+  1979→    new THREE.CylinderGeometry(7, 8, 30, 24),
+  1980→    mat
+  1981→  ));
+  1982→  snout.rotation.z = Math.PI / 2;
+  1983→  snout.position.set(mainsX[0] - mainW / 2 - 16, 0, 0);
+  1984→  group.add(snout);
+  1985→
+  1986→  // Keyway
+  1987→  const keyway = addShadow(new THREE.Mesh(
+  1988→    new THREE.BoxGeometry(20, 3, 3),
+  1989→    darkMat
+  1990→  ));
+  1991→  keyway.position.set(mainsX[0] - mainW / 2 - 16, 7, 0);
+  1992→  group.add(keyway);
+  1993→
+  1994→  // Timing belt sprocket
+  1995→  const sprocket = addShadow(new THREE.Mesh(
+  1996→    new THREE.CylinderGeometry(14, 14, 8, 20),
+  1997→    mat
+  1998→  ));
+  1999→  sprocket.rotation.z = Math.PI / 2;
+  2000→  sprocket.position.set(mainsX[0] - mainW / 2 - 35, 0, 0);
+
+[showing lines 1-2000 of 4307; use offset=2001 with limit to continue reading]

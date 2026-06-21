@@ -1,0 +1,1013 @@
+     1→// ====================== LA HILLS MANSION ======================
+     2→// A modern luxury mansion perched on the Hollywood Hills.
+     3→// 3 levels: garage/gym ground floor, main living floor, bedroom suites + rooftop.
+     4→// Features: infinity pool, glass walls, cantilevered sections, infinity-edge roof deck.
+     5→
+     6→import * as THREE from 'three';
+     7→import { addShadow, metal, steel, stainless, aluminum, darkSteel, brass, rubber, plastic } from './materials-dsl';
+     8→import {
+     9→  makeWoodTexture, makeTileTexture, makeBrickTexture, makeFabricTexture,
+    10→  makeGraniteTexture, makeMarbleTexture, makePlasterTexture, makeCarpetTexture,
+    11→  makeWallpaperTexture, makeConcreteTexture, makeGlassTexture, makeStoneTexture,
+    12→} from './building-textures';
+    13→
+    14→export function createLAMansionGeometry(): THREE.Group {
+    15→  const root = new THREE.Group();
+    16→
+    17→  // ===== MATERIALS =====
+    18→  const whiteConcreteTex = makeConcreteTexture('#e8e6e0');
+    19→  whiteConcreteTex.map.repeat.set(8, 4);
+    20→  whiteConcreteTex.bumpMap.repeat.set(8, 4);
+    21→  const wallMat = new THREE.MeshStandardMaterial({
+    22→    map: whiteConcreteTex.map, bumpMap: whiteConcreteTex.bumpMap, bumpScale: 0.02,
+    23→    metalness: 0.05, roughness: 0.7,
+    24→  });
+    25→
+    26→  const glassMat = new THREE.MeshStandardMaterial({
+    27→    color: 0x223344, metalness: 0.7, roughness: 0.1,
+    28→    transparent: true, opacity: 0.4,
+    29→  });
+    30→
+    31→  const darkFrameMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.2 });
+    32→  const trimMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.1 });
+    33→
+    34→  const woodFloor = makeWoodTexture('#8b6b3a', '#4a3010');
+    35→  woodFloor.map.repeat.set(12, 8);
+    36→  woodFloor.bumpMap.repeat.set(12, 8);
+    37→  const woodFloorMat = new THREE.MeshStandardMaterial({
+    38→    map: woodFloor.map, bumpMap: woodFloor.bumpMap, bumpScale: 0.04, metalness: 0.1, roughness: 0.5,
+    39→  });
+    40→
+    41→  const polishedConcrete = makeConcreteTexture('#cccccc');
+    42→  polishedConcrete.map.repeat.set(10, 6);
+    43→  const concreteFloorMat = new THREE.MeshStandardMaterial({
+    44→    map: polishedConcrete.map, bumpMap: polishedConcrete.bumpMap, bumpScale: 0.03, metalness: 0.1, roughness: 0.4,
+    45→  });
+    46→
+    47→  const poolMat = new THREE.MeshStandardMaterial({
+    48→    color: 0x006994, metalness: 0.3, roughness: 0.05,
+    49→    transparent: true, opacity: 0.75,
+    50→  });
+    51→
+    52→  const deckMat = makeWoodTexture('#6b5030', '#3a2510');
+    53→  deckMat.map.repeat.set(20, 6);
+    54→  deckMat.bumpMap.repeat.set(20, 6);
+    55→  const deckMaterial = new THREE.MeshStandardMaterial({
+    56→    map: deckMat.map, bumpMap: deckMat.bumpMap, bumpScale: 0.05, metalness: 0.05, roughness: 0.7,
+    57→  });
+    58→
+    59→  const modernSofa = makeFabricTexture('#3a3a3a', '#2a2a2a');
+    60→  modernSofa.map.repeat.set(3, 1);
+    61→  modernSofa.bumpMap.repeat.set(3, 1);
+    62→  const sofaMat = new THREE.MeshStandardMaterial({
+    63→    map: modernSofa.map, bumpMap: modernSofa.bumpMap, bumpScale: 0.06, metalness: 0.05, roughness: 0.7,
+    64→  });
+    65→
+    66→  const whiteFurnMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.3, metalness: 0.1 });
+    67→
+    68→  const graniteKitchen = makeGraniteTexture();
+    69→  graniteKitchen.map.repeat.set(4, 1);
+    70→  graniteKitchen.bumpMap.repeat.set(4, 1);
+    71→  const counterMat = new THREE.MeshStandardMaterial({
+    72→    map: graniteKitchen.map, bumpMap: graniteKitchen.bumpMap, bumpScale: 0.01, metalness: 0.4, roughness: 0.1,
+    73→  });
+    74→
+    75→  const cabinetMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.3, roughness: 0.3 });
+    76→  const applianceMat2 = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, metalness: 0.8, roughness: 0.1 });
+    77→
+    78→  const gardenMat = new THREE.MeshStandardMaterial({ color: 0x3a5a2a, roughness: 0.9 });
+    79→  const stoneMat = makeStoneTexture();
+    80→  stoneMat.map.repeat.set(4, 2);
+    81→  const retainingMat = new THREE.MeshStandardMaterial({
+    82→    map: stoneMat.map, bumpMap: stoneMat.bumpMap, bumpScale: 0.1, roughness: 0.8,
+    83→  });
+    84→
+    85→  const FH = 100; // floor height
+    86→
+    87→  // ============================================================
+    88→  // HILLSIDE / GROUND TERRAIN
+    89→  // ============================================================
+    90→  // Hillside slope (back of lot rises up)
+    91→  const hill = addShadow(new THREE.Mesh(
+    92→    new THREE.BoxGeometry(600, 200, 200),
+    93→    gardenMat
+    94→  ));
+    95→  hill.position.set(0, -50, -200);
+    96→  root.add(hill);
+    97→
+    98→  // Retaining wall (stone, at back of building)
+    99→  const retaining = addShadow(new THREE.Mesh(
+   100→    new THREE.BoxGeometry(280, 120, 8), retainingMat
+   101→  ));
+   102→  retaining.position.set(0, 10, -85);
+   103→  root.add(retaining);
+   104→
+   105→  // Front yard / driveway (concrete)
+   106→  const driveway = addShadow(new THREE.Mesh(
+   107→    new THREE.BoxGeometry(300, 2, 120), concreteFloorMat
+   108→  ));
+   109→  driveway.position.set(0, -1, 100);
+   110→  root.add(driveway);
+   111→
+   112→  // Garden area (grass) on sides
+   113→  const gardenL = addShadow(new THREE.Mesh(
+   114→    new THREE.BoxGeometry(60, 1, 300), gardenMat
+   115→  ));
+   116→  gardenL.position.set(-170, 0, 50);
+   117→  root.add(gardenL);
+   118→  const gardenR = addShadow(new THREE.Mesh(
+   119→    new THREE.BoxGeometry(60, 1, 300), gardenMat
+   120→  ));
+   121→  gardenR.position.set(170, 0, 50);
+   122→  root.add(gardenR);
+   123→
+   124→  // ============================================================
+   125→  // LEVEL 1 (Ground): Garage + Gym + Wine Cellar
+   126→  // ============================================================
+   127→  const level1 = new THREE.Group();
+   128→
+   129→  // Floor slab
+   130→  const l1Floor = addShadow(new THREE.Mesh(new THREE.BoxGeometry(240, 2, 160), concreteFloorMat));
+   131→  l1Floor.position.set(0, 1, 0);
+   132→  level1.add(l1Floor);
+   133→
+   134→  // Back wall (against hillside, concrete)
+   135→  const l1Back = addShadow(new THREE.Mesh(new THREE.BoxGeometry(240, FH, 8), wallMat));
+   136→  l1Back.position.set(0, FH / 2, -80);
+   137→  level1.add(l1Back);
+   138→
+   139→  // Side walls
+   140→  [-120, 120].forEach((x) => {
+   141→    const w = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, FH, 160), wallMat));
+   142→    w.position.set(x, FH / 2, 0);
+   143→    level1.add(w);
+   144→  });
+   145→
+   146→  // Front wall — mostly garage doors + entry
+   147→  // Left section (solid)
+   148→  const l1FrontL = addShadow(new THREE.Mesh(new THREE.BoxGeometry(50, FH, 8), wallMat));
+   149→  l1FrontL.position.set(-95, FH / 2, 80);
+   150→  level1.add(l1FrontL);
+   151→  // Right section (solid)
+   152→  const l1FrontR = addShadow(new THREE.Mesh(new THREE.BoxGeometry(50, FH, 8), wallMat));
+   153→  l1FrontR.position.set(95, FH / 2, 80);
+   154→  level1.add(l1FrontR);
+   155→  // Lintel above garage
+   156→  const l1Lintel = addShadow(new THREE.Mesh(new THREE.BoxGeometry(90, 20, 8), wallMat));
+   157→  l1Lintel.position.set(0, FH - 10, 80);
+   158→  level1.add(l1Lintel);
+   159→
+   160→  // Garage doors (3 modern roll-up doors)
+   161→  [-45, 0, 45].forEach((x) => {
+   162→    const door = addShadow(new THREE.Mesh(
+   163→      new THREE.BoxGeometry(38, 70, 2),
+   164→      new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.6, roughness: 0.3 })
+   165→    ));
+   166→    door.position.set(x, 35, 81);
+   167→    level1.add(door);
+   168→    // Door frame
+   169→    const frame = addShadow(new THREE.Mesh(
+   170→      new THREE.BoxGeometry(42, 74, 3), darkFrameMat
+   171→    ));
+   172→    frame.position.set(x, 35, 79);
+   173→    level1.add(frame);
+   174→    // Door panel lines (horizontal)
+   175→    for (let i = 0; i < 5; i++) {
+   176→      const line = addShadow(new THREE.Mesh(
+   177→        new THREE.BoxGeometry(36, 0.5, 0.5), trimMat
+   178→      ));
+   179→      line.position.set(x, 10 + i * 14, 82);
+   180→      level1.add(line);
+   181→    }
+   182→  });
+   183→
+   184→  // Interior wall separating garage from gym
+   185→  const l1Div = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, FH, 100), wallMat));
+   186→  l1Div.position.set(0, FH / 2, -30);
+   187→  level1.add(l1Div);
+   188→  // Door opening in divider
+   189→  const l1DoorFrame = addShadow(new THREE.Mesh(new THREE.BoxGeometry(12, 30, 10), darkFrameMat));
+   190→  l1DoorFrame.position.set(0, 15, 10);
+   191→  level1.add(l1DoorFrame);
+   192→
+   193→  // Gym area (left side, x=-120 to 0)
+   194→  // Gym mirror wall
+   195→  const gymMirror = addShadow(new THREE.Mesh(
+   196→    new THREE.BoxGeometry(2, 60, 80), glassMat
+   197→  ));
+   198→  gymMirror.position.set(-116, 35, -30);
+   199→  level1.add(gymMirror);
+   200→
+   201→  // Gym equipment (treadmill)
+   202→  const treadmill = addShadow(new THREE.Mesh(
+   203→    new THREE.BoxGeometry(15, 5, 30), darkFrameMat
+   204→  ));
+   205→  treadmill.position.set(-80, 5, -20);
+   206→  level1.add(treadmill);
+   207→  const treadmillBelt = addShadow(new THREE.Mesh(
+   208→    new THREE.BoxGeometry(12, 1, 20), new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 })
+   209→  ));
+   210→  treadmillBelt.position.set(-80, 8, -20);
+   211→  level1.add(treadmillBelt);
+   212→  // Treadmill console
+   213→  const tmConsole = addShadow(new THREE.Mesh(
+   214→    new THREE.BoxGeometry(15, 15, 3), darkFrameMat
+   215→  ));
+   216→  tmConsole.position.set(-80, 12, -36);
+   217→  level1.add(tmConsole);
+   218→
+   219→  // Weight rack
+   220→  const weightRack = addShadow(new THREE.Mesh(
+   221→    new THREE.BoxGeometry(20, 30, 6), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.3 })
+   222→  ));
+   223→  weightRack.position.set(-90, 15, 10);
+   224→  level1.add(weightRack);
+   225→  // Dumbbells on rack (5 pairs)
+   226→  for (let i = 0; i < 5; i++) {
+   227→    const db = addShadow(new THREE.Mesh(
+   228→      new THREE.BoxGeometry(8, 4, 4), new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 })
+   229→    ));
+   230→    db.position.set(-90, 6 + i * 5, 10);
+   231→    level1.add(db);
+   232→  }
+   233→
+   234→  // Wine cellar (right side, behind gym wall)
+   235→  // Wine racks (2 rows of bottles)
+   236→  for (let row = 0; row < 4; row++) {
+   237→    for (let col = 0; col < 10; col++) {
+   238→      const bottle = addShadow(new THREE.Mesh(
+   239→        new THREE.CylinderGeometry(1.2, 1.2, 8, 12),
+   240→        new THREE.MeshStandardMaterial({
+   241→          color: [0x8b0000, 0x228b22, 0x4a2a1a, 0xffd700][row % 4],
+   242→          metalness: 0.3, roughness: 0.4,
+   243→        })
+   244→      ));
+   245→      bottle.position.set(40 + col * 8, 5 + row * 10, -60);
+   246→      bottle.rotation.x = Math.PI / 2;
+   247→      level1.add(bottle);
+   248→    }
+   249→  }
+   250→  // Wine rack frame
+   251→  const wineFrame = addShadow(new THREE.Mesh(
+   252→    new THREE.BoxGeometry(90, 50, 5), new THREE.MeshStandardMaterial({ color: 0x4a3010, roughness: 0.6 })
+   253→  ));
+   254→  wineFrame.position.set(80, 25, -65);
+   255→  level1.add(wineFrame);
+   256→
+   257→  // Ceiling
+   258→  const l1Ceiling = addShadow(new THREE.Mesh(new THREE.BoxGeometry(240, 2, 160), wallMat));
+   259→  l1Ceiling.position.set(0, FH, 0);
+   260→  level1.add(l1Ceiling);
+   261→
+   262→  root.add(level1);
+   263→
+   264→  // ============================================================
+   265→  // LEVEL 2 (Main Living Floor) — cantilevered over ground floor
+   266→  // ============================================================
+   267→  const level2 = new THREE.Group();
+   268→  level2.position.y = FH;
+   269→
+   270→  // Floor slab (extends beyond level 1 walls — cantilevered)
+   271→  const l2Floor = addShadow(new THREE.Mesh(new THREE.BoxGeometry(280, 3, 180), woodFloorMat));
+   272→  l2Floor.position.set(0, 1.5, 10);
+   273→  level2.add(l2Floor);
+   274→
+   275→  // Back wall (solid concrete, against hill)
+   276→  const l2Back = addShadow(new THREE.Mesh(new THREE.BoxGeometry(280, FH, 8), wallMat));
+   277→  l2Back.position.set(0, FH / 2, -80);
+   278→  level2.add(l2Back);
+   279→
+   280→  // Side walls (shorter, allowing glass on front and sides)
+   281→  [-140, 140].forEach((x) => {
+   282→    const w = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, FH, 80), wallMat));
+   283→    w.position.set(x, FH / 2, -40);
+   284→    level2.add(w);
+   285→  });
+   286→
+   287→  // Front and side GLASS walls (floor-to-ceiling)
+   288→  // Front glass wall (facing the view)
+   289→  const frontGlass = addShadow(new THREE.Mesh(
+   290→    new THREE.BoxGeometry(240, 80, 2), glassMat
+   291→  ));
+   292→  frontGlass.position.set(0, 45, 90);
+   293→  level2.add(frontGlass);
+   294→  // Glass wall frame (vertical mullions)
+   295→  for (let x = -100; x <= 100; x += 40) {
+   296→    const mullion = addShadow(new THREE.Mesh(
+   297→      new THREE.BoxGeometry(3, 80, 4), darkFrameMat
+   298→    ));
+   299→    mullion.position.set(x, 45, 91);
+   300→    level2.add(mullion);
+   301→  }
+   302→  // Top and bottom frame
+   303→  const topFrame = addShadow(new THREE.Mesh(new THREE.BoxGeometry(240, 4, 4), darkFrameMat));
+   304→  topFrame.position.set(0, 85, 91);
+   305→  level2.add(topFrame);
+   306→  const botFrame = addShadow(new THREE.Mesh(new THREE.BoxGeometry(240, 4, 4), darkFrameMat));
+   307→  botFrame.position.set(0, 5, 91);
+   308→  level2.add(botFrame);
+   309→
+   310→  // Left side glass wall
+   311→  const leftGlass = addShadow(new THREE.Mesh(
+   312→    new THREE.BoxGeometry(2, 80, 100), glassMat
+   313→  ));
+   314→  leftGlass.position.set(-141, 45, 10);
+   315→  level2.add(leftGlass);
+   316→  for (let z = -30; z <= 50; z += 40) {
+   317→    const mullion = addShadow(new THREE.Mesh(
+   318→      new THREE.BoxGeometry(4, 80, 3), darkFrameMat
+   319→    ));
+   320→    mullion.position.set(-141, 45, z);
+   321→    level2.add(mullion);
+   322→  }
+   323→
+   324→  // Right side glass wall
+   325→  const rightGlass = addShadow(new THREE.Mesh(
+   326→    new THREE.BoxGeometry(2, 80, 100), glassMat
+   327→  ));
+   328→  rightGlass.position.set(141, 45, 10);
+   329→  level2.add(rightGlass);
+   330→
+   331→  // Interior divider wall (separates kitchen from living)
+   332→  const l2Div = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, 60, 40), wallMat));
+   333→  l2Div.position.set(40, 30, -20);
+   334→  level2.add(l2Div);
+   335→
+   336→  // === LIVING ROOM (front, open plan) ===
+   337→  // L-shaped modern sofa (white/gray)
+   338→  const sofa1Base = addShadow(new THREE.Mesh(new THREE.BoxGeometry(60, 8, 20), sofaMat));
+   339→  sofa1Base.position.set(-30, 6, 50);
+   340→  level2.add(sofa1Base);
+   341→  const sofa1Back = addShadow(new THREE.Mesh(new THREE.BoxGeometry(60, 25, 4), sofaMat));
+   342→  sofa1Back.position.set(-30, 17, 42);
+   343→  level2.add(sofa1Back);
+   344→  const sofa1Side = addShadow(new THREE.Mesh(new THREE.BoxGeometry(4, 25, 20), sofaMat));
+   345→  sofa1Side.position.set(-58, 17, 50);
+   346→  level2.add(sofa1Side);
+   347→  // Sofa cushions
+   348→  [-15, 0, 15, 30].forEach((x) => {
+   349→    const cushion = addShadow(new THREE.Mesh(new THREE.BoxGeometry(14, 3, 16), sofaMat));
+   350→    cushion.position.set(-30 + x, 11, 50);
+   351→    level2.add(cushion);
+   352→  });
+   353→
+   354→  // Modern coffee table (glass top + metal base)
+   355→  const coffeeBase = addShadow(new THREE.Mesh(
+   356→    new THREE.BoxGeometry(30, 1, 15), trimMat
+   357→  ));
+   358→  coffeeBase.position.set(-30, 4, 68);
+   359→  level2.add(coffeeBase);
+   360→  const coffeeLegs = [[-12, -5], [12, -5], [-12, 5], [12, 5]].forEach(([dx, dz]) => {
+   361→    const leg = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 4, 8), trimMat));
+   362→    leg.position.set(-30 + dx, 2, 68 + dz);
+   363→    level2.add(leg);
+   364→  });
+   365→  const coffeeGlass = addShadow(new THREE.Mesh(
+   366→    new THREE.BoxGeometry(32, 1, 17), glassMat
+   367→  ));
+   368→  coffeeGlass.position.set(-30, 5, 68);
+   369→  level2.add(coffeeGlass);
+   370→
+   371→  // Modern fireplace (against back wall)
+   372→  const fireBase = addShadow(new THREE.Mesh(
+   373→    new THREE.BoxGeometry(40, 3, 15), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3 })
+   374→  ));
+   375→  fireBase.position.set(-50, 3, -70);
+   376→  level2.add(fireBase);
+   377→  const fireWall = addShadow(new THREE.Mesh(
+   378→    new THREE.BoxGeometry(40, 60, 2),
+   379→    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.2 })
+   380→  ));
+   381→  fireWall.position.set(-50, 35, -78);
+   382→  level2.add(fireWall);
+   383→  // Fire glowing
+   384→  const fireGlow = addShadow(new THREE.Mesh(
+   385→    new THREE.BoxGeometry(20, 8, 2),
+   386→    new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.8 })
+   387→  ));
+   388→  fireGlow.position.set(-50, 8, -77);
+   389→  level2.add(fireGlow);
+   390→  // Fire light
+   391→  const fireLight = new THREE.PointLight(0xff6600, 1.0, 80, 2);
+   392→  fireLight.position.set(-50, 15, -60);
+   393→  root.add(fireLight);
+   394→
+   395→  // TV (wall-mounted, 85-inch flat panel)
+   396→  const tv = addShadow(new THREE.Mesh(
+   397→    new THREE.BoxGeometry(50, 28, 1.5), darkFrameMat
+   398→  ));
+   399→  tv.position.set(80, 45, -78);
+   400→  level2.add(tv);
+   401→  const tvScreen = new THREE.Mesh(
+   402→    new THREE.BoxGeometry(48, 26, 0.5),
+   403→    new THREE.MeshStandardMaterial({ color: 0x000011, emissive: 0x001133, emissiveIntensity: 0.2 })
+   404→  );
+   405→  tvScreen.position.set(80, 45, -77);
+   406→  level2.add(tvScreen);
+   407→
+   408→  // === DINING AREA (right side) ===
+   409→  const diningTable = addShadow(new THREE.Mesh(
+   410→    new THREE.BoxGeometry(40, 3, 15), whiteFurnMat
+   411→  ));
+   412→  diningTable.position.set(70, 20, 40);
+   413→  level2.add(diningTable);
+   414→  // Table base (single pedestal)
+   415→  const diningBase = addShadow(new THREE.Mesh(
+   416→    new THREE.CylinderGeometry(3, 5, 20, 16), trimMat
+   417→  ));
+   418→  diningBase.position.set(70, 10, 40);
+   419→  level2.add(diningBase);
+   420→  // Dining chairs (8 — modern design)
+   421→  [[55, 30], [85, 30], [55, 50], [85, 50], [55, 35], [85, 35], [55, 45], [85, 45]].forEach(([x, z]) => {
+   422→    const chairSeat = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, 2, 8), whiteFurnMat));
+   423→    chairSeat.position.set(x, 16, z);
+   424→    level2.add(chairSeat);
+   425→    const chairBack = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, 12, 1), whiteFurnMat));
+   426→    chairBack.position.set(x, 22, z - 4);
+   427→    level2.add(chairBack);
+   428→    // Chair leg
+   429→    const leg = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 16, 8), trimMat));
+   430→    leg.position.set(x, 8, z);
+   431→    level2.add(leg);
+   432→  });
+   433→
+   434→  // Pendant lights over dining table (3)
+   435→  [60, 70, 80].forEach((x) => {
+   436→    const pendant = addShadow(new THREE.Mesh(
+   437→      new THREE.SphereGeometry(3, 16, 12),
+   438→      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffeec0, emissiveIntensity: 0.7 })
+   439→    ));
+   440→    pendant.position.set(x, 65, 40);
+   441→    level2.add(pendant);
+   442→    const cord = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 15, 8), darkFrameMat));
+   443→    cord.position.set(x, 75, 40);
+   444→    level2.add(cord);
+   445→    // Light
+   446→    const light = new THREE.PointLight(0xffeec0, 0.5, 50, 2);
+   447→    light.position.set(x, 65, 40);
+   448→    level2.add(light);
+   449→  });
+   450→
+   451→  // === KITCHEN (back-right, open plan) ===
+   452→  // Kitchen island (large, with waterfall countertop)
+   453→  const island = addShadow(new THREE.Mesh(
+   454→    new THREE.BoxGeometry(60, 30, 25), cabinetMat
+   455→  ));
+   456→  island.position.set(80, 15, -40);
+   457→  level2.add(island);
+   458→  // Island countertop (granite, waterfall sides)
+   459→  const islandTop = addShadow(new THREE.Mesh(
+   460→    new THREE.BoxGeometry(64, 3, 29), counterMat
+   461→  ));
+   462→  islandTop.position.set(80, 31, -40);
+   463→  level2.add(islandTop);
+   464→  // Waterfall sides
+   465→  [-1, 1].forEach((s) => {
+   466→    const side = addShadow(new THREE.Mesh(new THREE.BoxGeometry(64, 30, 2), counterMat));
+   467→    side.position.set(80, 16, -40 + s * 14);
+   468→    level2.add(side);
+   469→  });
+   470→
+   471→  // Bar stools at island (4)
+   472→  [60, 70, 80, 90].forEach((x) => {
+   473→    const stool = addShadow(new THREE.Mesh(
+   474→      new THREE.CylinderGeometry(2.5, 2.5, 18, 12), trimMat
+   475→    ));
+   476→    stool.position.set(x, 9, -25);
+   477→    level2.add(stool);
+   478→    const stoolSeat = addShadow(new THREE.Mesh(
+   479→      new THREE.CylinderGeometry(3, 3, 2, 12), whiteFurnMat
+   480→    ));
+   481→    stoolSeat.position.set(x, 18, -25);
+   482→    level2.add(stoolSeat);
+   483→  });
+   484→
+   485→  // Back wall kitchen counter + cabinets
+   486→  const kitchenCounter = addShadow(new THREE.Mesh(
+   487→    new THREE.BoxGeometry(80, 25, 10), cabinetMat
+   488→  ));
+   489→  kitchenCounter.position.set(80, 12, -75);
+   490→  level2.add(kitchenCounter);
+   491→  const kitchenTop = addShadow(new THREE.Mesh(
+   492→    new THREE.BoxGeometry(84, 2, 14), counterMat
+   493→  ));
+   494→  kitchenTop.position.set(80, 26, -75);
+   495→  level2.add(kitchenTop);
+   496→
+   497→  // Upper cabinets
+   498→  const upperCabs = addShadow(new THREE.Mesh(
+   499→    new THREE.BoxGeometry(80, 20, 8), cabinetMat
+   500→  ));
+   501→  upperCabs.position.set(80, 50, -77);
+   502→  level2.add(upperCabs);
+   503→
+   504→  // Built-in appliances (stove, oven)
+   505→  const stove2 = addShadow(new THREE.Mesh(
+   506→    new THREE.BoxGeometry(20, 4, 12), applianceMat2
+   507→  ));
+   508→  stove2.position.set(60, 27, -75);
+   509→  level2.add(stove2);
+   510→  // Stove burners
+   511→  [[-4, -2], [4, -2], [-4, 2], [4, 2]].forEach(([dx, dz]) => {
+   512→    const burner = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.5, 16), darkFrameMat));
+   513→    burner.position.set(60 + dx, 29, -75 + dz);
+   514→    level2.add(burner);
+   515→  });
+   516→
+   517→  // Fridge (built-in, panel-ready)
+   518→  const fridge2 = addShadow(new THREE.Mesh(
+   519→    new THREE.BoxGeometry(18, 40, 12), cabinetMat
+   520→  ));
+   521→  fridge2.position.set(110, 20, -75);
+   522→  level2.add(fridge2);
+   523→
+   524→  // Wine fridge (glass front)
+   525→  const wineFridge = addShadow(new THREE.Mesh(
+   526→    new THREE.BoxGeometry(15, 30, 12),
+   527→    new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.5, roughness: 0.2 })
+   528→  ));
+   529→  wineFridge.position.set(-30, 15, -75);
+   530→  level2.add(wineFridge);
+   531→
+   532→  // Ceiling
+   533→  const l2Ceiling = addShadow(new THREE.Mesh(new THREE.BoxGeometry(280, 2, 180), wallMat));
+   534→  l2Ceiling.position.set(0, FH, 10);
+   535→  level2.add(l2Ceiling);
+   536→
+   537→  root.add(level2);
+   538→
+   539→  // ============================================================
+   540→  // INFINITY POOL + DECK (front of level 2, cantilevered)
+   541→  // ============================================================
+   542→  // Pool deck (wood decking extending past glass wall)
+   543→  const poolDeck = addShadow(new THREE.Mesh(
+   544→    new THREE.BoxGeometry(280, 2, 60), deckMaterial
+   545→  ));
+   546→  poolDeck.position.set(0, FH + 3, 120);
+   547→  root.add(poolDeck);
+   548→
+   549→  // Infinity pool
+   550→  const pool = addShadow(new THREE.Mesh(
+   551→    new THREE.BoxGeometry(80, 15, 30), poolMat
+   552→  ));
+   553→  pool.position.set(0, FH + 2, 130);
+   554→  root.add(pool);
+   555→
+   556→  // Pool infinity edge (front wall — water flows over)
+   557→  const poolEdge = addShadow(new THREE.Mesh(
+   558→    new THREE.BoxGeometry(82, 8, 2),
+   559→    new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.5, roughness: 0.2 })
+   560→  ));
+   561→  poolEdge.position.set(0, FH + 1, 146);
+   562→  root.add(poolEdge);
+   563→
+   564→  // Pool lounge chairs (4)
+   565→  [-30, -10, 10, 30].forEach((x) => {
+   566→    const lounger = addShadow(new THREE.Mesh(
+   567→      new THREE.BoxGeometry(8, 3, 20), whiteFurnMat
+   568→    ));
+   569→    lounger.position.set(x, FH + 5, 115);
+   570→    root.add(lounger);
+   571→    // Lounger backrest
+   572→    const backrest = addShadow(new THREE.Mesh(
+   573→      new THREE.BoxGeometry(8, 12, 3), whiteFurnMat
+   574→    ));
+   575→    backrest.position.set(x, FH + 9, 108);
+   576→    root.add(backrest);
+   577→  });
+   578→
+   579→  // Pool umbrella
+   580→  const umbrellaPole = addShadow(new THREE.Mesh(
+   581→    new THREE.CylinderGeometry(0.8, 0.8, 30, 8), trimMat
+   582→  ));
+   583→  umbrellaPole.position.set(-50, FH + 18, 125);
+   584→  root.add(umbrellaPole);
+   585→  const umbrellaTop = addShadow(new THREE.Mesh(
+   586→    new THREE.ConeGeometry(15, 5, 16),
+   587→    new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.5 })
+   588→  ));
+   589→  umbrellaTop.position.set(-50, FH + 33, 125);
+   590→  root.add(umbrellaTop);
+   591→
+   592→  // ============================================================
+   593→  // LEVEL 3 (Bedroom Suites + Rooftop Deck)
+   594→  // ============================================================
+   595→  const level3 = new THREE.Group();
+   596→  level3.position.y = FH * 2;
+   597→
+   598→  // Floor slab (smaller footprint — set back for rooftop deck)
+   599→  const l3Floor = addShadow(new THREE.Mesh(new THREE.BoxGeometry(200, 3, 140), woodFloorMat));
+   600→  l3Floor.position.set(-20, 1.5, -10);
+   601→  level3.add(l3Floor);
+   602→
+   603→  // Back wall
+   604→  const l3Back = addShadow(new THREE.Mesh(new THREE.BoxGeometry(200, FH, 8), wallMat));
+   605→  l3Back.position.set(-20, FH / 2, -80);
+   606→  level3.add(l3Back);
+   607→
+   608→  // Side walls
+   609→  [-120, 80].forEach((x) => {
+   610→    const w = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, FH, 100), wallMat));
+   611→    w.position.set(x, FH / 2, -30);
+   612→    level3.add(w);
+   613→  });
+   614→
+   615→  // Interior divider walls (separating 2 bedroom suites)
+   616→  const l3Div1 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, FH, 60), wallMat));
+   617→  l3Div1.position.set(-20, FH / 2, -20);
+   618→  level3.add(l3Div1);
+   619→
+   620→  // Front glass walls
+   621→  const l3Glass = addShadow(new THREE.Mesh(
+   622→    new THREE.BoxGeometry(180, 80, 2), glassMat
+   623→  ));
+   624→  l3Glass.position.set(-30, 45, 60);
+   625→  level3.add(l3Glass);
+   626→  // Glass mullions
+   627→  for (let x = -100; x <= 40; x += 40) {
+   628→    const m = addShadow(new THREE.Mesh(new THREE.BoxGeometry(3, 80, 4), darkFrameMat));
+   629→    m.position.set(x, 45, 61);
+   630→    level3.add(m);
+   631→  }
+   632→
+   633→  // === MASTER SUITE (left side) ===
+   634→  // King bed
+   635→  const masterBed = addShadow(new THREE.Mesh(
+   636→    new THREE.BoxGeometry(50, 8, 60), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5 })
+   637→  ));
+   638→  masterBed.position.set(-70, 6, 10);
+   639→  level3.add(masterBed);
+   640→  // Mattress
+   641→  const masterMattress = addShadow(new THREE.Mesh(
+   642→    new THREE.BoxGeometry(48, 4, 58),
+   643→    new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.5 })
+   644→  ));
+   645→  masterMattress.position.set(-70, 10, 10);
+   646→  level3.add(masterMattress);
+   647→  // Pillows
+   648→  [-82, -58].forEach((x) => {
+   649→    const p = addShadow(new THREE.Mesh(
+   650→      new THREE.BoxGeometry(15, 3, 10),
+   651→      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })
+   652→    ));
+   653→    p.position.set(x, 13, -14);
+   654→    level3.add(p);
+   655→  });
+   656→  // Headboard (floor-to-ceiling wood panel)
+   657→  const headboard3 = addShadow(new THREE.Mesh(
+   658→    new THREE.BoxGeometry(60, 70, 3),
+   659→    new THREE.MeshStandardMaterial({ color: 0x4a3010, roughness: 0.4 })
+   660→  ));
+   661→  headboard3.position.set(-70, 38, -22);
+   662→  level3.add(headboard3);
+   663→
+   664→  // Nightstands (floating, modern)
+   665→  [-100, -40].forEach((x) => {
+   666→    const ns = addShadow(new THREE.Mesh(new THREE.BoxGeometry(10, 5, 10), whiteFurnMat));
+   667→    ns.position.set(x, 12, -5);
+   668→    level3.add(ns);
+   669→    // Modern lamp
+   670→    const lampBase = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1, 2, 1, 8), trimMat));
+   671→    lampBase.position.set(x, 15, -5);
+   672→    level3.add(lampBase);
+   673→    const lampStem = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 8, 8), trimMat));
+   674→    lampStem.position.set(x, 19, -5);
+   675→    level3.add(lampStem);
+   676→    const lampShade = addShadow(new THREE.Mesh(
+   677→      new THREE.CylinderGeometry(3, 4, 4, 16),
+   678→      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffeec0, emissiveIntensity: 0.5 })
+   679→    ));
+   680→    lampShade.position.set(x, 25, -5);
+   681→    level3.add(lampShade);
+   682→  });
+   683→
+   684→  // Master bathroom (behind bed area)
+   685→  // Freestanding soaking tub
+   686→  const tub = addShadow(new THREE.Mesh(
+   687→    new THREE.CylinderGeometry(12, 10, 15, 24),
+   688→    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1 })
+   689→  ));
+   690→  tub.position.set(-90, 8, 40);
+   691→  level3.add(tub);
+   692→  // Tub interior
+   693→  const tubInt = new THREE.Mesh(
+   694→    new THREE.CylinderGeometry(10, 8, 14, 24),
+   695→    new THREE.MeshStandardMaterial({ color: 0x006994, metalness: 0.3, roughness: 0.05 })
+   696→  );
+   697→  tubInt.position.set(-90, 9, 40);
+   698→  level3.add(tubInt);
+   699→
+   700→  // Double vanity (floating)
+   701→  const vanity3 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(40, 2, 12), whiteFurnMat));
+   702→  vanity3.position.set(-50, 25, 50);
+   703→  level3.add(vanity3);
+   704→  // Vessel sinks (2)
+   705→  [-60, -40].forEach((x) => {
+   706→    const sink = addShadow(new THREE.Mesh(
+   707→      new THREE.CylinderGeometry(4, 4, 3, 16),
+   708→      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 })
+   709→    ));
+   710→    sink.position.set(x, 27, 50);
+   711→    level3.add(sink);
+   712→    // Faucet
+   713→    const f = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 8, 8), trimMat));
+   714→    f.position.set(x, 31, 47);
+   715→    level3.add(f);
+   716→  });
+   717→  // Vanity mirrors (2, floor-to-ceiling)
+   718→  [-60, -40].forEach((x) => {
+   719→    const mirror = addShadow(new THREE.Mesh(
+   720→      new THREE.BoxGeometry(12, 50, 0.5),
+   721→      new THREE.MeshStandardMaterial({ color: 0x333344, metalness: 0.9, roughness: 0.05 })
+   722→    ));
+   723→    mirror.position.set(x, 30, 56);
+   724→    level3.add(mirror);
+   725→  });
+   726→
+   727→  // === GUEST BEDROOM (right side) ===
+   728→  const guestBed = addShadow(new THREE.Mesh(
+   729→    new THREE.BoxGeometry(35, 8, 45), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5 })
+   730→  ));
+   731→  guestBed.position.set(40, 6, 10);
+   732→  level3.add(guestBed);
+   733→  const guestMattress = addShadow(new THREE.Mesh(
+   734→    new THREE.BoxGeometry(33, 4, 43),
+   735→    new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.5 })
+   736→  ));
+   737→  guestMattress.position.set(40, 10, 10);
+   738→  level3.add(guestMattress);
+   739→  // Guest headboard
+   740→  const guestHead = addShadow(new THREE.Mesh(
+   741→    new THREE.BoxGeometry(40, 50, 3), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.3 })
+   742→  ));
+   743→  guestHead.position.set(40, 28, -14);
+   744→  level3.add(guestHead);
+   745→
+   746→  // Walk-in closet (right side, behind guest bedroom)
+   747→  // Closet shelves
+   748→  for (let i = 0; i < 5; i++) {
+   749→    const shelf = addShadow(new THREE.Mesh(
+   750→      new THREE.BoxGeometry(30, 1, 10), whiteFurnMat
+   751→    ));
+   752→    shelf.position.set(55, 10 + i * 10, -50);
+   753→    level3.add(shelf);
+   754→  }
+   755→  // Hanging clothes rod
+   756→  const rod = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30, 8), trimMat));
+   757→  rod.rotation.z = Math.PI / 2;
+   758→  rod.position.set(55, 40, -55);
+   759→  level3.add(rod);
+   760→  // Hanging clothes (decorative)
+   761→  for (let i = 0; i < 8; i++) {
+   762→    const clothes = addShadow(new THREE.Mesh(
+   763→      new THREE.BoxGeometry(5, 25, 2),
+   764→      new THREE.MeshStandardMaterial({
+   765→        color: [0x333333, 0x666666, 0x990000, 0x003366, 0x333333, 0x666666, 0x990000, 0x003366][i],
+   766→        roughness: 0.7,
+   767→      })
+   768→    ));
+   769→    clothes.position.set(45 + i * 3, 27, -55);
+   770→    level3.add(clothes);
+   771→  }
+   772→
+   773→  // Ceiling
+   774→  const l3Ceiling = addShadow(new THREE.Mesh(new THREE.BoxGeometry(200, 2, 140), wallMat));
+   775→  l3Ceiling.position.set(-20, FH, -10);
+   776→  level3.add(l3Ceiling);
+   777→
+   778→  root.add(level3);
+   779→
+   780→  // ============================================================
+   781→  // ROOFTOP DECK (on top of level 3, open-air)
+   782→  // ============================================================
+   783→  const rooftop = new THREE.Group();
+   784→  rooftop.position.y = FH * 3;
+   785→
+   786→  // Deck floor
+   787→  const roofDeck = addShadow(new THREE.Mesh(new THREE.BoxGeometry(200, 2, 140), deckMaterial));
+   788→  roofDeck.position.set(-20, 1, -10);
+   789→  rooftop.add(roofDeck);
+   790→
+   791→  // Glass railing around perimeter
+   792→  const railGlass = new THREE.MeshStandardMaterial({
+   793→    color: 0x88aacc, metalness: 0.5, roughness: 0.1,
+   794→    transparent: true, opacity: 0.3,
+   795→  });
+   796→  const railFrame = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.15 });
+   797→  // Front railing
+   798→  const frontRail = addShadow(new THREE.Mesh(new THREE.BoxGeometry(180, 5, 1), railGlass));
+   799→  frontRail.position.set(-30, 4, 60);
+   800→  rooftop.add(frontRail);
+   801→  const frontRailTop = addShadow(new THREE.Mesh(new THREE.BoxGeometry(180, 2, 2), railFrame));
+   802→  frontRailTop.position.set(-30, 7, 60);
+   803→  rooftop.add(frontRailTop);
+   804→  // Side railings
+   805→  [-120, 80].forEach((x) => {
+   806→    const r = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1, 5, 100), railGlass));
+   807→    r.position.set(x, 4, -10);
+   808→    rooftop.add(r);
+   809→    const rt = addShadow(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 100), railFrame));
+   810→    rt.position.set(x, 7, -10);
+   811→    rooftop.add(rt);
+   812→  });
+   813→  // Back railing
+   814→  const backRail = addShadow(new THREE.Mesh(new THREE.BoxGeometry(180, 5, 1), railGlass));
+   815→  backRail.position.set(-30, 4, -80);
+   816→  rooftop.add(backRail);
+   817→  const backRailTop = addShadow(new THREE.Mesh(new THREE.BoxGeometry(180, 2, 2), railFrame));
+   818→  backRailTop.position.set(-30, 7, -80);
+   819→  rooftop.add(backRailTop);
+   820→
+   821→  // Outdoor lounge seating
+   822→  const outdoorSofa = addShadow(new THREE.Mesh(new THREE.BoxGeometry(40, 8, 15),
+   823→    new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.6 })));
+   824→  outdoorSofa.position.set(-50, 5, 30);
+   825→  rooftop.add(outdoorSofa);
+   826→  const outdoorSofaBack = addShadow(new THREE.Mesh(new THREE.BoxGeometry(40, 15, 3),
+   827→    new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.6 })));
+   828→  outdoorSofaBack.position.set(-50, 10, 23);
+   829→  rooftop.add(outdoorSofaBack);
+   830→
+   831→  // Outdoor coffee table (fire pit)
+   832→  const firePit = addShadow(new THREE.Mesh(
+   833→    new THREE.CylinderGeometry(8, 8, 5, 24),
+   834→    new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5, roughness: 0.3 })
+   835→  ));
+   836→  firePit.position.set(-50, 5, 50);
+   837→  rooftop.add(firePit);
+   838→  const firePitGlow = addShadow(new THREE.Mesh(
+   839→    new THREE.CylinderGeometry(6, 6, 2, 24),
+   840→    new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 0.9 })
+   841→  ));
+   842→  firePitGlow.position.set(-50, 8, 50);
+   843→  rooftop.add(firePitGlow);
+   844→  const firePitLight = new THREE.PointLight(0xff6600, 0.8, 60, 2);
+   845→  firePitLight.position.set(-50, 12, 50);
+   846→  rooftop.add(firePitLight);
+   847→
+   848→  // Outdoor dining table
+   849→  const outdoorTable = addShadow(new THREE.Mesh(new THREE.BoxGeometry(25, 3, 12), whiteFurnMat));
+   850→  outdoorTable.position.set(30, 5, 30);
+   851→  rooftop.add(outdoorTable);
+   852→
+   853→  // Sun loungers (2, for tanning)
+   854→  [20, 35].forEach((x) => {
+   855→    const lounger = addShadow(new THREE.Mesh(new THREE.BoxGeometry(8, 3, 18), whiteFurnMat));
+   856→    lounger.position.set(x, 4, -30);
+   857→    rooftop.add(lounger);
+   858→  });
+   859→
+   860→  // Outdoor kitchen / BBQ
+   861→  const bbq = addShadow(new THREE.Mesh(new THREE.BoxGeometry(20, 20, 10),
+   862→    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6, roughness: 0.3 })));
+   863→  bbq.position.set(60, 10, -50);
+   864→  rooftop.add(bbq);
+   865→  // BBQ grill
+   866→  const grill = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 3, 16),
+   867→    new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.7, roughness: 0.2 })));
+   868→  grill.position.set(60, 22, -50);
+   869→  rooftop.add(grill);
+   870→
+   871→  // Jacuzzi / hot tub
+   872→  const jacuzzi = addShadow(new THREE.Mesh(
+   873→    new THREE.CylinderGeometry(12, 10, 10, 24), poolMat
+   874→  ));
+   875→  jacuzzi.position.set(50, 6, -10);
+   876→  rooftop.add(jacuzzi);
+   877→
+   878→  // ============================================================
+   879→  // EXTERIOR DETAILS
+   880→  // ============================================================
+   881→
+   882→  // Palm trees (4 around the property)
+   883→  const palmTrunkMat = new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.8 });
+   884→  const palmLeafMat = new THREE.MeshStandardMaterial({ color: 0x2d5a1d, roughness: 0.7, side: THREE.DoubleSide });
+   885→  [[-160, 80], [160, 80], [-160, -30], [160, -30]].forEach(([x, z]) => {
+   886→    // Trunk (tapered cylinder)
+   887→    const trunk = addShadow(new THREE.Mesh(
+   888→      new THREE.CylinderGeometry(2, 4, 60, 8), palmTrunkMat
+   889→    ));
+   890→    trunk.position.set(x, 30, z);
+   891→    root.add(trunk);
+   892→    // Palm fronds (6 leaves radiating)
+   893→    for (let i = 0; i < 8; i++) {
+   894→      const angle = (i / 8) * Math.PI * 2;
+   895→      const frond = addShadow(new THREE.Mesh(
+   896→        new THREE.BoxGeometry(20, 1, 3), palmLeafMat
+   897→      ));
+   898→      frond.position.set(x + Math.cos(angle) * 10, 60, z + Math.sin(angle) * 10);
+   899→      frond.rotation.y = angle;
+   900→      frond.rotation.z = -0.3;
+   901→      root.add(frond);
+   902→    }
+   903→  });
+   904→
+   905→  // Sports cars in driveway (2)
+   906→  // Car 1 (red sports car)
+   907→  const carBody1 = addShadow(new THREE.Mesh(
+   908→    new THREE.BoxGeometry(40, 8, 18),
+   909→    new THREE.MeshStandardMaterial({ color: 0xcc0000, metalness: 0.9, roughness: 0.1 })
+   910→  ));
+   911→  carBody1.position.set(-30, 6, 120);
+   912→  root.add(carBody1);
+   913→  const carCabin1 = addShadow(new THREE.Mesh(
+   914→    new THREE.BoxGeometry(20, 6, 16), glassMat
+   915→  ));
+   916→  carCabin1.position.set(-30, 13, 120);
+   917→  root.add(carCabin1);
+   918→  // Wheels (4)
+   919→  [[-15, -8], [15, -8], [-15, 8], [15, 8]].forEach(([dx, dz]) => {
+   920→    const wheel = addShadow(new THREE.Mesh(
+   921→      new THREE.CylinderGeometry(4, 4, 3, 16),
+   922→      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 })
+   923→    ));
+   924→    wheel.rotation.x = Math.PI / 2;
+   925→    wheel.position.set(-30 + dx, 3, 120 + dz);
+   926→    root.add(wheel);
+   927→  });
+   928→  // Headlights
+   929→  [-5, 5].forEach((dz) => {
+   930→    const light = addShadow(new THREE.Mesh(
+   931→      new THREE.BoxGeometry(1, 2, 3),
+   932→      new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffaa, emissiveIntensity: 0.5 })
+   933→    ));
+   934→    light.position.set(-10, 6, 120 + dz);
+   935→    root.add(light);
+   936→  });
+   937→
+   938→  // Car 2 (white luxury SUV)
+   939→  const carBody2 = addShadow(new THREE.Mesh(
+   940→    new THREE.BoxGeometry(45, 10, 20),
+   941→    new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.8, roughness: 0.15 })
+   942→  ));
+   943→  carBody2.position.set(30, 7, 120);
+   944→  root.add(carBody2);
+   945→  const carCabin2 = addShadow(new THREE.Mesh(
+   946→    new THREE.BoxGeometry(30, 8, 18), glassMat
+   947→  ));
+   948→  carCabin2.position.set(30, 15, 120);
+   949→  root.add(carCabin2);
+   950→  [[-17, -9], [17, -9], [-17, 9], [17, 9]].forEach(([dx, dz]) => {
+   951→    const wheel = addShadow(new THREE.Mesh(
+   952→      new THREE.CylinderGeometry(5, 5, 3.5, 16),
+   953→      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 })
+   954→    ));
+   955→    wheel.rotation.x = Math.PI / 2;
+   956→    wheel.position.set(30 + dx, 3, 120 + dz);
+   957→    root.add(wheel);
+   958→  });
+   959→
+   960→  // City lights / skyline (distant, as emissive dots)
+   961→  for (let i = 0; i < 100; i++) {
+   962→    const dot = addShadow(new THREE.Mesh(
+   963→      new THREE.BoxGeometry(0.5, 0.5, 0.5),
+   964→      new THREE.MeshStandardMaterial({
+   965→        color: [0xffaa00, 0xffffff, 0x88ccff, 0xffcc44][Math.floor(Math.random() * 4)],
+   966→        emissive: 0xffffff, emissiveIntensity: 0.5,
+   967→      })
+   968→    ));
+   969→    dot.position.set(
+   970→      -200 + Math.random() * 400,
+   971→      10 + Math.random() * 60,
+   972→      200 + Math.random() * 100
+   973→    );
+   974→    root.add(dot);
+   975→  }
+   976→
+   977→  // ============================================================
+   978→  // LIGHTING
+   979→  // ============================================================
+   980→  // Level 2 — main living area
+   981→  const l2Light1 = new THREE.PointLight(0xffeec0, 0.8, 150, 1.5);
+   982→  l2Light1.position.set(-30, FH + 85, 40);
+   983→  l2Light1.castShadow = true;
+   984→  l2Light1.shadow.mapSize.set(512, 512);
+   985→  root.add(l2Light1);
+   986→
+   987→  const l2Light2 = new THREE.PointLight(0xffeec0, 0.6, 120, 1.5);
+   988→  l2Light2.position.set(80, FH + 85, -40);
+   989→  root.add(l2Light2);
+   990→
+   991→  // Level 3 — bedrooms
+   992→  const l3Light1 = new THREE.PointLight(0xd0e0ff, 0.5, 100, 2);
+   993→  l3Light1.position.set(-70, FH * 2 + 80, 10);
+   994→  root.add(l3Light1);
+   995→
+   996→  const l3Light2 = new THREE.PointLight(0xffeec0, 0.4, 80, 2);
+   997→  l3Light2.position.set(40, FH * 2 + 80, 10);
+   998→  root.add(l3Light2);
+   999→
+  1000→  // Pool light (underwater blue glow)
+  1001→  const poolLight = new THREE.PointLight(0x00aaff, 0.6, 60, 2);
+  1002→  poolLight.position.set(0, FH + 5, 130);
+  1003→  root.add(poolLight);
+  1004→
+  1005→  // Rooftop ambient
+  1006→  const roofLight = new THREE.PointLight(0xffeec0, 0.3, 100, 2);
+  1007→  roofLight.position.set(-20, FH * 3 + 20, 0);
+  1008→  root.add(roofLight);
+  1009→
+  1010→  root.add(rooftop);
+  1011→  return root;
+  1012→}
+  1013→

@@ -1,0 +1,1000 @@
+     1→// ====================== CHINESE 3-STORY BUILDING ======================
+     2→// A detailed 3-story urban building typical of Chinese residential/commercial
+     3→// construction: ground-floor shop, two residential floors with balconies,
+     4→// flat roof with water tank, AC units, solar water heater, satellite dish.
+     5→
+     6→import * as THREE from 'three';
+     7→import { addShadow, metal, steel, stainless, aluminum, darkSteel, brass, rubber, plastic } from './materials-dsl';
+     8→import { createBuildingInteriorGeometry } from './building-interior';
+     9→import { createBuildingOccupants } from './building-occupants';
+    10→
+    11→export function createChineseBuildingGeometry(): THREE.Group {
+    12→  const root = new THREE.Group();
+    13→
+    14→  // === Add detailed interior (walls, rooms, furniture, stairs) ===
+    15→  const interior = createBuildingInteriorGeometry();
+    16→  root.add(interior);
+    17→
+    18→  // === Add 3D occupants (people) throughout the building ===
+    19→  const occupants = createBuildingOccupants();
+    20→  root.add(occupants);
+    21→
+    22→  // Material palette
+    23→  const concreteMat = new THREE.MeshStandardMaterial({ color: 0xe5e0d5, metalness: 0.05, roughness: 0.85 });
+    24→  const tileMat = new THREE.MeshStandardMaterial({ color: 0xd4c4a8, metalness: 0.05, roughness: 0.8 }); // tan tiles
+    25→  const accentMat = new THREE.MeshStandardMaterial({ color: 0x8b3a2e, metalness: 0.1, roughness: 0.7 }); // red accents (Chinese style)
+    26→  const darkFrame = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.3, roughness: 0.6 });
+    27→  const windowGlass = new THREE.MeshStandardMaterial({
+    28→    color: 0x4a90b8, metalness: 0.3, roughness: 0.1,
+    29→    transparent: true, opacity: 0.55,
+    30→  });
+    31→  const glassReflect = new THREE.MeshStandardMaterial({
+    32→    color: 0x2a4a6a, metalness: 0.6, roughness: 0.15,
+    33→    transparent: true, opacity: 0.7,
+    34→  });
+    35→  const railingMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, metalness: 0.6, roughness: 0.4 });
+    36→  const roofMat = new THREE.MeshStandardMaterial({ color: 0x6b6b6b, metalness: 0.2, roughness: 0.8 });
+    37→  const acMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.3, roughness: 0.4 });
+    38→  const woodMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, metalness: 0.1, roughness: 0.7 });
+    39→  const doorMat = new THREE.MeshStandardMaterial({ color: 0x8b3a2e, metalness: 0.2, roughness: 0.5 });
+    40→  const grassMat = new THREE.MeshStandardMaterial({ color: 0x4a7c3a, metalness: 0.05, roughness: 0.9 });
+    41→  const solarMat = new THREE.MeshStandardMaterial({ color: 0x1a3a5a, metalness: 0.7, roughness: 0.2 });
+    42→
+    43→  const buildingW = 200;   // width (X)
+    44→  const buildingD = 140;   // depth (Z)
+    45→  const floorH = 100;      // floor height
+    46→  const wallT = 6;         // wall thickness
+    47→
+    48→  // ========================================================================
+    49→  // FOUNDATION / GROUND
+    50→  // ========================================================================
+    51→  const ground = addShadow(new THREE.Mesh(
+    52→    new THREE.BoxGeometry(buildingW + 80, 4, buildingD + 80),
+    53→    new THREE.MeshStandardMaterial({ color: 0x6b6b5a, metalness: 0.05, roughness: 0.95 })
+    54→  ));
+    55→  ground.position.y = -2;
+    56→  root.add(ground);
+    57→
+    58→  // Sidewalk around building
+    59→  const sidewalk = addShadow(new THREE.Mesh(
+    60→    new THREE.BoxGeometry(buildingW + 40, 2, buildingD + 40),
+    61→    new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.1, roughness: 0.7 })
+    62→  ));
+    63→  sidewalk.position.y = 1;
+    64→  root.add(sidewalk);
+    65→
+    66→  // ========================================================================
+    67→  // GROUND FLOOR (Shop / Commercial) — y: 0 to 100
+    68→  // ========================================================================
+    69→  const groundFloor = new THREE.Group();
+    70→
+    71→  // Main walls (4 walls with window/door openings approximated by separate panels)
+    72→  // Back wall
+    73→  const backWall = addShadow(new THREE.Mesh(
+    74→    new THREE.BoxGeometry(buildingW, floorH, wallT), concreteMat
+    75→  ));
+    76→  backWall.position.set(0, floorH / 2, -buildingD / 2);
+    77→  groundFloor.add(backWall);
+    78→
+    79→  // Side walls
+    80→  [-1, 1].forEach((s) => {
+    81→    const sideWall = addShadow(new THREE.Mesh(
+    82→      new THREE.BoxGeometry(wallT, floorH, buildingD), concreteMat
+    83→    ));
+    84→    sideWall.position.set(s * (buildingW / 2 - wallT / 2), floorH / 2, 0);
+    85→    groundFloor.add(sideWall);
+    86→  });
+    87→
+    88→  // Front wall is split into sections to leave room for shop windows and door
+    89→  // Left of door
+    90→  const frontLeft = addShadow(new THREE.Mesh(
+    91→    new THREE.BoxGeometry(30, floorH, wallT), concreteMat
+    92→  ));
+    93→  frontLeft.position.set(-buildingW / 2 + 15, floorH / 2, buildingD / 2);
+    94→  groundFloor.add(frontLeft);
+    95→
+    96→  // Right of door
+    97→  const frontRight = addShadow(new THREE.Mesh(
+    98→    new THREE.BoxGeometry(30, floorH, wallT), concreteMat
+    99→  ));
+   100→  frontRight.position.set(buildingW / 2 - 15, floorH / 2, buildingD / 2);
+   101→  groundFloor.add(frontRight);
+   102→
+   103→  // Above door (lintel)
+   104→  const lintel = addShadow(new THREE.Mesh(
+   105→    new THREE.BoxGeometry(buildingW - 60, 25, wallT), concreteMat
+   106→  ));
+   107→  lintel.position.set(0, floorH - 12.5, buildingD / 2);
+   108→  groundFloor.add(lintel);
+   109→
+   110→  // === Large shop windows (front, ground floor) ===
+   111→  [-1, 1].forEach((s) => {
+   112→    const glass = addShadow(new THREE.Mesh(
+   113→      new THREE.BoxGeometry(60, 60, 2), glassReflect
+   114→    ));
+   115→    glass.position.set(s * 50, 40, buildingD / 2 + 0.5);
+   116→    groundFloor.add(glass);
+   117→
+   118→    // Window frame
+   119→    const frame = addShadow(new THREE.Mesh(
+   120→      new THREE.BoxGeometry(64, 64, 4), darkFrame
+   121→    ));
+   122→    frame.position.set(s * 50, 40, buildingD / 2 - 0.5);
+   123→    groundFloor.add(frame);
+   124→
+   125→    // Window mullions (vertical dividers)
+   126→    [-15, 0, 15].forEach((x) => {
+   127→      const mullion = addShadow(new THREE.Mesh(
+   128→        new THREE.BoxGeometry(2, 60, 3), darkFrame
+   129→      ));
+   130→      mullion.position.set(s * 50 + x, 40, buildingD / 2 + 1);
+   131→      groundFloor.add(mullion);
+   132→    });
+   133→
+   134→    // Horizontal divider
+   135→    const hDiv = addShadow(new THREE.Mesh(
+   136→      new THREE.BoxGeometry(60, 2, 3), darkFrame
+   137→    ));
+   138→    hDiv.position.set(s * 50, 40, buildingD / 2 + 1);
+   139→    groundFloor.add(hDiv);
+   140→  });
+   141→
+   142→  // === Shop entrance door (center, double glass door) ===
+   143→  [-1, 1].forEach((s) => {
+   144→    const door = addShadow(new THREE.Mesh(
+   145→      new THREE.BoxGeometry(15, 70, 3), glassReflect
+   146→    ));
+   147→    door.position.set(s * 9, 35, buildingD / 2 + 0.5);
+   148→    groundFloor.add(door);
+   149→
+   150→    // Door frame
+   151→    const dframe = addShadow(new THREE.Mesh(
+   152→      new THREE.BoxGeometry(16, 72, 4), darkFrame
+   153→    ));
+   154→    dframe.position.set(s * 9, 35, buildingD / 2 - 0.5);
+   155→    groundFloor.add(dframe);
+   156→
+   157→    // Door handle
+   158→    const handle = addShadow(new THREE.Mesh(
+   159→      new THREE.CylinderGeometry(0.8, 0.8, 8, 8), steel()
+   160→    ));
+   161→    handle.position.set(s * 16, 35, buildingD / 2 + 2);
+   162→    handle.rotation.z = Math.PI / 2;
+   163→    groundFloor.add(handle);
+   164→  });
+   165→
+   166→  // === Shop sign / awning above ground floor ===
+   167→  const awning = addShadow(new THREE.Mesh(
+   168→    new THREE.BoxGeometry(buildingW - 10, 12, 20), accentMat
+   169→  ));
+   170→  awning.position.set(0, floorH + 6, buildingD / 2 + 8);
+   171→  groundFloor.add(awning);
+   172→
+   173→  // Sign text panel (decorative)
+   174→  const sign = addShadow(new THREE.Mesh(
+   175→    new THREE.BoxGeometry(buildingW - 30, 8, 2),
+   176→    new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6, roughness: 0.3 })
+   177→  ));
+   178→  sign.position.set(0, floorH + 6, buildingD / 2 + 18);
+   179→  groundFloor.add(sign);
+   180→
+   181→  // Side windows on ground floor (small, high — for bathroom/storage)
+   182→  [-1, 1].forEach((s) => {
+   183→    [30, -30].forEach((z) => {
+   184→      const win = addShadow(new THREE.Mesh(
+   185→        new THREE.BoxGeometry(2, 30, 25), windowGlass
+   186→      ));
+   187→      win.position.set(s * (buildingW / 2 + 0.5), 65, z);
+   188→      groundFloor.add(win);
+   189→      const wframe = addShadow(new THREE.Mesh(
+   190→        new THREE.BoxGeometry(3, 34, 29), darkFrame
+   191→      ));
+   192→      wframe.position.set(s * (buildingW / 2 - 0.5), 65, z);
+   193→      groundFloor.add(wframe);
+   194→    });
+   195→  });
+   196→
+   197→  root.add(groundFloor);
+   198→
+   199→  // ========================================================================
+   200→  // 2ND FLOOR (Residential) — y: 100 to 200
+   201→  // ========================================================================
+   202→  const secondFloor = new THREE.Group();
+   203→  secondFloor.position.y = floorH;
+   204→
+   205→  // Back wall
+   206→  const back2 = addShadow(new THREE.Mesh(
+   207→    new THREE.BoxGeometry(buildingW, floorH, wallT), concreteMat
+   208→  ));
+   209→  back2.position.set(0, floorH / 2, -buildingD / 2);
+   210→  secondFloor.add(back2);
+   211→
+   212→  // Side walls
+   213→  [-1, 1].forEach((s) => {
+   214→    const sw = addShadow(new THREE.Mesh(
+   215→      new THREE.BoxGeometry(wallT, floorH, buildingD), concreteMat
+   216→    ));
+   217→    sw.position.set(s * (buildingW / 2 - wallT / 2), floorH / 2, 0);
+   218→    secondFloor.add(sw);
+   219→  });
+   220→
+   221→  // Floor slab (visible separation)
+   222→  const slab2 = addShadow(new THREE.Mesh(
+   223→    new THREE.BoxGeometry(buildingW + 4, 4, buildingD + 4), concreteMat
+   224→  ));
+   225→  slab2.position.y = -2;
+   226→  secondFloor.add(slab2);
+   227→
+   228→  // Front wall (with balcony door opening)
+   229→  // Sections left and right of balcony door
+   230→  [-1, 1].forEach((s) => {
+   231→    const section = addShadow(new THREE.Mesh(
+   232→      new THREE.BoxGeometry(60, floorH, wallT), concreteMat
+   233→    ));
+   234→    section.position.set(s * 70, floorH / 2, buildingD / 2);
+   235→    secondFloor.add(section);
+   236→  });
+   237→  // Lintel above balcony door
+   238→  const lintel2 = addShadow(new THREE.Mesh(
+   239→    new THREE.BoxGeometry(80, 25, wallT), concreteMat
+   240→  ));
+   241→  lintel2.position.set(0, floorH - 12.5, buildingD / 2);
+   242→  secondFloor.add(lintel2);
+   243→
+   244→  // === Windows on 2nd floor ===
+   245→  // Front windows (2 on each side of balcony)
+   246→  [-1, 1].forEach((s) => {
+   247→    [-35, -55].forEach((x) => {
+   248→      // skip - we'll just do one window per side section
+   249→    });
+   250→    const win = addShadow(new THREE.Mesh(
+   251→      new THREE.BoxGeometry(40, 50, 2), windowGlass
+   252→    ));
+   253→    win.position.set(s * 70, 55, buildingD / 2 + 0.5);
+   254→    secondFloor.add(win);
+   255→    const wframe = addShadow(new THREE.Mesh(
+   256→      new THREE.BoxGeometry(44, 54, 4), darkFrame
+   257→    ));
+   258→    wframe.position.set(s * 70, 55, buildingD / 2 - 0.5);
+   259→    secondFloor.add(wframe);
+   260→    // Mullion
+   261→    const mull = addShadow(new THREE.Mesh(
+   262→      new THREE.BoxGeometry(2, 50, 3), darkFrame
+   263→    ));
+   264→    mull.position.set(s * 70, 55, buildingD / 2 + 1);
+   265→    secondFloor.add(mull);
+   266→    // Horizontal divider
+   267→    const hdiv = addShadow(new THREE.Mesh(
+   268→      new THREE.BoxGeometry(40, 2, 3), darkFrame
+   269→    ));
+   270→    hdiv.position.set(s * 70, 55, buildingD / 2 + 1);
+   271→    secondFloor.add(hdiv);
+   272→    // Window sill
+   273→    const sill = addShadow(new THREE.Mesh(
+   274→      new THREE.BoxGeometry(46, 4, 6), accentMat
+   275→    ));
+   276→    sill.position.set(s * 70, 28, buildingD / 2 + 2);
+   277→    secondFloor.add(sill);
+   278→  });
+   279→
+   280→  // Side windows (2 per side)
+   281→  [-1, 1].forEach((s) => {
+   282→    [30, -30].forEach((z) => {
+   283→      const win = addShadow(new THREE.Mesh(
+   284→        new THREE.BoxGeometry(2, 45, 35), windowGlass
+   285→      ));
+   286→      win.position.set(s * (buildingW / 2 + 0.5), 55, z);
+   287→      secondFloor.add(win);
+   288→      const wframe = addShadow(new THREE.Mesh(
+   289→        new THREE.BoxGeometry(3, 49, 39), darkFrame
+   290→      ));
+   291→      wframe.position.set(s * (buildingW / 2 - 0.5), 55, z);
+   292→      secondFloor.add(wframe);
+   293→      // Sill
+   294→      const sill = addShadow(new THREE.Mesh(
+   295→        new THREE.BoxGeometry(4, 3, 42), accentMat
+   296→      ));
+   297→      sill.position.set(s * (buildingW / 2 + 1), 30, z);
+   298→      secondFloor.add(sill);
+   299→    });
+   300→  });
+   301→
+   302→  // Back windows (3 small ones for bedrooms/bathrooms)
+   303→  [-50, 0, 50].forEach((x) => {
+   304→    const win = addShadow(new THREE.Mesh(
+   305→      new THREE.BoxGeometry(30, 40, 2), windowGlass
+   306→    ));
+   307→    win.position.set(x, 55, -buildingD / 2 - 0.5);
+   308→    secondFloor.add(win);
+   309→    const wframe = addShadow(new THREE.Mesh(
+   310→      new THREE.BoxGeometry(34, 44, 4), darkFrame
+   311→    ));
+   312→    wframe.position.set(x, 55, -buildingD / 2 + 0.5);
+   313→    secondFloor.add(wframe);
+   314→  });
+   315→
+   316→  // === Balcony (front, 2nd floor) ===
+   317→  const balcony2 = new THREE.Group();
+   318→  balcony2.position.set(0, 30, buildingD / 2);
+   319→
+   320→  // Balcony floor slab
+   321→  const balcFloor = addShadow(new THREE.Mesh(
+   322→    new THREE.BoxGeometry(80, 4, 20), concreteMat
+   323→  ));
+   324→  balcFloor.position.set(0, -2, 10);
+   325→  balcony2.add(balcFloor);
+   326→
+   327→  // Balcony railing (front + 2 sides) — vertical bars + top rail
+   328→  // Front railing
+   329→  const topRailF = addShadow(new THREE.Mesh(
+   330→    new THREE.BoxGeometry(80, 3, 3), railingMat
+   331→  ));
+   332→  topRailF.position.set(0, 35, 20);
+   333→  balcony2.add(topRailF);
+   334→  const botRailF = addShadow(new THREE.Mesh(
+   335→    new THREE.BoxGeometry(80, 3, 3), railingMat
+   336→  ));
+   337→  botRailF.position.set(0, 5, 20);
+   338→  balcony2.add(botRailF);
+   339→  // Vertical bars (front)
+   340→  for (let i = 0; i <= 16; i++) {
+   341→    const bar = addShadow(new THREE.Mesh(
+   342→      new THREE.BoxGeometry(1.5, 30, 1.5), railingMat
+   343→    ));
+   344→    bar.position.set(-40 + i * 5, 20, 20);
+   345→    balcony2.add(bar);
+   346→  }
+   347→  // Side railings
+   348→  [-1, 1].forEach((s) => {
+   349→    const topRail = addShadow(new THREE.Mesh(
+   350→      new THREE.BoxGeometry(3, 3, 20), railingMat
+   351→    ));
+   352→    topRail.position.set(s * 40, 35, 10);
+   353→    balcony2.add(topRail);
+   354→    const botRail = addShadow(new THREE.Mesh(
+   355→      new THREE.BoxGeometry(3, 3, 20), railingMat
+   356→    ));
+   357→    botRail.position.set(s * 40, 5, 10);
+   358→    balcony2.add(botRail);
+   359→    for (let i = 0; i <= 4; i++) {
+   360→      const bar = addShadow(new THREE.Mesh(
+   361→        new THREE.BoxGeometry(1.5, 30, 1.5), railingMat
+   362→      ));
+   363→      bar.position.set(s * 40, 20, i * 5);
+   364→      balcony2.add(bar);
+   365→    }
+   366→  });
+   367→
+   368→  // Balcony door (sliding glass)
+   369→  const balcDoor = addShadow(new THREE.Mesh(
+   370→    new THREE.BoxGeometry(76, 70, 2), glassReflect
+   371→  ));
+   372→  balcDoor.position.set(0, 35, 0);
+   373→  balcony2.add(balcDoor);
+   374→  const balcDoorFrame = addShadow(new THREE.Mesh(
+   375→    new THREE.BoxGeometry(80, 74, 4), darkFrame
+   376→  ));
+   377→  balcDoorFrame.position.set(0, 35, -1);
+   378→  balcony2.add(balcDoorFrame);
+   379→
+   380→  // Potted plants on balcony
+   381→  [-25, 25].forEach((x) => {
+   382→    const pot = addShadow(new THREE.Mesh(
+   383→      new THREE.CylinderGeometry(4, 5, 6, 12),
+   384→      new THREE.MeshStandardMaterial({ color: 0x8b5a2b, metalness: 0.1, roughness: 0.7 })
+   385→    ));
+   386→    pot.position.set(x, 3, 15);
+   387→    balcony2.add(pot);
+   388→    const plant = addShadow(new THREE.Mesh(
+   389→      new THREE.SphereGeometry(6, 12, 10), grassMat
+   390→    ));
+   391→    plant.position.set(x, 12, 15);
+   392→    balcony2.add(plant);
+   393→  });
+   394→
+   395→  secondFloor.add(balcony2);
+   396→
+   397→  // === AC unit on side wall (2nd floor) ===
+   398→  [-1, 1].forEach((s) => {
+   399→    const acBody = addShadow(new THREE.Mesh(
+   400→      new THREE.BoxGeometry(20, 12, 8), acMat
+   401→    ));
+   402→    acBody.position.set(s * (buildingW / 2 + 4), 80, 30);
+   403→    secondFloor.add(acBody);
+   404→    // AC fan grille
+   405→    const fan = addShadow(new THREE.Mesh(
+   406→      new THREE.CylinderGeometry(4, 4, 1, 16), darkFrame
+   407→    ));
+   408→    fan.rotation.z = Math.PI / 2;
+   409→    fan.position.set(s * (buildingW / 2 + 8), 80, 30);
+   410→    secondFloor.add(fan);
+   411→    // AC compressor fins
+   412→    const fins = addShadow(new THREE.Mesh(
+   413→      new THREE.BoxGeometry(1, 10, 6), darkFrame
+   414→    ));
+   415→    fins.position.set(s * (buildingW / 2 + 8.5), 80, 30);
+   416→    secondFloor.add(fins);
+   417→    // AC bracket
+   418→    const bracket = addShadow(new THREE.Mesh(
+   419→      new THREE.BoxGeometry(22, 2, 4), darkFrame
+   420→    ));
+   421→    bracket.position.set(s * (buildingW / 2 + 3), 73, 30);
+   422→    secondFloor.add(bracket);
+   423→  });
+   424→
+   425→  root.add(secondFloor);
+   426→
+   427→  // ========================================================================
+   428→  // 3RD FLOOR (Residential, set back slightly with bigger balcony) — y: 200 to 300
+   429→  // ========================================================================
+   430→  const thirdFloor = new THREE.Group();
+   431→  thirdFloor.position.y = floorH * 2;
+   432→
+   433→  // Floor slab
+   434→  const slab3 = addShadow(new THREE.Mesh(
+   435→    new THREE.BoxGeometry(buildingW + 4, 4, buildingD + 4), concreteMat
+   436→  ));
+   437→  slab3.position.y = -2;
+   438→  thirdFloor.add(slab3);
+   439→
+   440→  // Back wall
+   441→  const back3 = addShadow(new THREE.Mesh(
+   442→    new THREE.BoxGeometry(buildingW, floorH, wallT), concreteMat
+   443→  ));
+   444→  back3.position.set(0, floorH / 2, -buildingD / 2);
+   445→  thirdFloor.add(back3);
+   446→
+   447→  // Side walls
+   448→  [-1, 1].forEach((s) => {
+   449→    const sw = addShadow(new THREE.Mesh(
+   450→      new THREE.BoxGeometry(wallT, floorH, buildingD), concreteMat
+   451→    ));
+   452→    sw.position.set(s * (buildingW / 2 - wallT / 2), floorH / 2, 0);
+   453→    thirdFloor.add(sw);
+   454→  });
+   455→
+   456→  // Front wall (with balcony door)
+   457→  [-1, 1].forEach((s) => {
+   458→    const section = addShadow(new THREE.Mesh(
+   459→      new THREE.BoxGeometry(50, floorH, wallT), concreteMat
+   460→    ));
+   461→    section.position.set(s * 75, floorH / 2, buildingD / 2);
+   462→    thirdFloor.add(section);
+   463→  });
+   464→  const lintel3 = addShadow(new THREE.Mesh(
+   465→    new THREE.BoxGeometry(100, 25, wallT), concreteMat
+   466→  ));
+   467→  lintel3.position.set(0, floorH - 12.5, buildingD / 2);
+   468→  thirdFloor.add(lintel3);
+   469→
+   470→  // Front windows (2)
+   471→  [-1, 1].forEach((s) => {
+   472→    const win = addShadow(new THREE.Mesh(
+   473→      new THREE.BoxGeometry(35, 50, 2), windowGlass
+   474→    ));
+   475→    win.position.set(s * 75, 55, buildingD / 2 + 0.5);
+   476→    thirdFloor.add(win);
+   477→    const wframe = addShadow(new THREE.Mesh(
+   478→      new THREE.BoxGeometry(39, 54, 4), darkFrame
+   479→    ));
+   480→    wframe.position.set(s * 75, 55, buildingD / 2 - 0.5);
+   481→    thirdFloor.add(wframe);
+   482→    const mull = addShadow(new THREE.Mesh(
+   483→      new THREE.BoxGeometry(2, 50, 3), darkFrame
+   484→    ));
+   485→    mull.position.set(s * 75, 55, buildingD / 2 + 1);
+   486→    thirdFloor.add(mull);
+   487→    const sill = addShadow(new THREE.Mesh(
+   488→      new THREE.BoxGeometry(42, 4, 6), accentMat
+   489→    ));
+   490→    sill.position.set(s * 75, 28, buildingD / 2 + 2);
+   491→    thirdFloor.add(sill);
+   492→  });
+   493→
+   494→  // Side windows
+   495→  [-1, 1].forEach((s) => {
+   496→    [30, -30].forEach((z) => {
+   497→      const win = addShadow(new THREE.Mesh(
+   498→        new THREE.BoxGeometry(2, 45, 35), windowGlass
+   499→      ));
+   500→      win.position.set(s * (buildingW / 2 + 0.5), 55, z);
+   501→      thirdFloor.add(win);
+   502→      const wframe = addShadow(new THREE.Mesh(
+   503→        new THREE.BoxGeometry(3, 49, 39), darkFrame
+   504→      ));
+   505→      wframe.position.set(s * (buildingW / 2 - 0.5), 55, z);
+   506→      thirdFloor.add(wframe);
+   507→    });
+   508→  });
+   509→
+   510→  // Back windows
+   511→  [-50, 0, 50].forEach((x) => {
+   512→    const win = addShadow(new THREE.Mesh(
+   513→      new THREE.BoxGeometry(30, 40, 2), windowGlass
+   514→    ));
+   515→    win.position.set(x, 55, -buildingD / 2 - 0.5);
+   516→    thirdFloor.add(win);
+   517→    const wframe = addShadow(new THREE.Mesh(
+   518→      new THREE.BoxGeometry(34, 44, 4), darkFrame
+   519→    ));
+   520→    wframe.position.set(x, 55, -buildingD / 2 + 0.5);
+   521→    thirdFloor.add(wframe);
+   522→  });
+   523→
+   524→  // === Large balcony (3rd floor, wraps around front) ===
+   525→  const balcony3 = new THREE.Group();
+   526→  balcony3.position.set(0, 30, buildingD / 2);
+   527→
+   528→  // Bigger balcony floor
+   529→  const balc3Floor = addShadow(new THREE.Mesh(
+   530→    new THREE.BoxGeometry(150, 4, 30), concreteMat
+   531→  ));
+   532→  balc3Floor.position.set(0, -2, 15);
+   533→  balcony3.add(balc3Floor);
+   534→
+   535→  // Front railing
+   536→  const topRail3F = addShadow(new THREE.Mesh(
+   537→    new THREE.BoxGeometry(150, 3, 3), railingMat
+   538→  ));
+   539→  topRail3F.position.set(0, 35, 30);
+   540→  balcony3.add(topRail3F);
+   541→  const botRail3F = addShadow(new THREE.Mesh(
+   542→    new THREE.BoxGeometry(150, 3, 3), railingMat
+   543→  ));
+   544→  botRail3F.position.set(0, 5, 30);
+   545→  balcony3.add(botRail3F);
+   546→  for (let i = 0; i <= 30; i++) {
+   547→    const bar = addShadow(new THREE.Mesh(
+   548→      new THREE.BoxGeometry(1.5, 30, 1.5), railingMat
+   549→    ));
+   550→    bar.position.set(-75 + i * 5, 20, 30);
+   551→    balcony3.add(bar);
+   552→  }
+   553→  // Side railings (extending out)
+   554→  [-1, 1].forEach((s) => {
+   555→    const topRail = addShadow(new THREE.Mesh(
+   556→      new THREE.BoxGeometry(3, 3, 30), railingMat
+   557→    ));
+   558→    topRail.position.set(s * 75, 35, 15);
+   559→    balcony3.add(topRail);
+   560→    const botRail = addShadow(new THREE.Mesh(
+   561→      new THREE.BoxGeometry(3, 3, 30), railingMat
+   562→    ));
+   563→    botRail.position.set(s * 75, 5, 15);
+   564→    balcony3.add(botRail);
+   565→    for (let i = 0; i <= 6; i++) {
+   566→      const bar = addShadow(new THREE.Mesh(
+   567→        new THREE.BoxGeometry(1.5, 30, 1.5), railingMat
+   568→      ));
+   569→      bar.position.set(s * 75, 20, i * 5);
+   570→      balcony3.add(bar);
+   571→    }
+   572→  });
+   573→
+   574→  // Decorative railing pattern (Chinese-style diamond shapes)
+   575→  for (let i = 0; i < 14; i++) {
+   576→    const diamond = addShadow(new THREE.Mesh(
+   577→      new THREE.BoxGeometry(8, 8, 1.5), accentMat
+   578→    ));
+   579→    diamond.position.set(-65 + i * 10, 20, 30);
+   580→    diamond.rotation.z = Math.PI / 4;
+   581→    balcony3.add(diamond);
+   582→  }
+   583→
+   584→  // Balcony doors (3 sliding glass doors)
+   585→  [-40, 0, 40].forEach((x) => {
+   586→    const door = addShadow(new THREE.Mesh(
+   587→      new THREE.BoxGeometry(35, 70, 2), glassReflect
+   588→    ));
+   589→    door.position.set(x, 35, 0);
+   590→    balcony3.add(door);
+   591→    const dframe = addShadow(new THREE.Mesh(
+   592→      new THREE.BoxGeometry(37, 74, 4), darkFrame
+   593→    ));
+   594→    dframe.position.set(x, 35, -1);
+   595→    balcony3.add(dframe);
+   596→  });
+   597→
+   598→  // Potted plants and drying rack
+   599→  [-60, 60].forEach((x) => {
+   600→    const pot = addShadow(new THREE.Mesh(
+   601→      new THREE.CylinderGeometry(5, 6, 7, 12),
+   602→      new THREE.MeshStandardMaterial({ color: 0x8b5a2b, metalness: 0.1, roughness: 0.7 })
+   603→    ));
+   604→    pot.position.set(x, 3, 22);
+   605→    balcony3.add(pot);
+   606→    const plant = addShadow(new THREE.Mesh(
+   607→      new THREE.SphereGeometry(8, 12, 10), grassMat
+   608→    ));
+   609→    plant.position.set(x, 14, 22);
+   610→    balcony3.add(plant);
+   611→  });
+   612→
+   613→  // Drying rack (clothes)
+   614→  const rack = addShadow(new THREE.Mesh(
+   615→    new THREE.BoxGeometry(30, 2, 2), stainless()
+   616→  ));
+   617→  rack.position.set(0, 38, 25);
+   618→  balcony3.add(rack);
+   619→  const rack2 = addShadow(new THREE.Mesh(
+   620→    new THREE.BoxGeometry(30, 2, 2), stainless()
+   621→  ));
+   622→  rack2.position.set(0, 38, 20);
+   623→  balcony3.add(rack2);
+   624→  // Rack supports
+   625→  [-12, 12].forEach((x) => {
+   626→    const sup = addShadow(new THREE.Mesh(
+   627→      new THREE.BoxGeometry(1.5, 12, 1.5), stainless()
+   628→    ));
+   629→    sup.position.set(x, 32, 22.5);
+   630→    balcony3.add(sup);
+   631→  });
+   632→
+   633→  thirdFloor.add(balcony3);
+   634→
+   635→  // AC units on 3rd floor
+   636→  [-1, 1].forEach((s) => {
+   637→    const acBody = addShadow(new THREE.Mesh(
+   638→      new THREE.BoxGeometry(20, 12, 8), acMat
+   639→    ));
+   640→    acBody.position.set(s * (buildingW / 2 + 4), 80, -30);
+   641→    thirdFloor.add(acBody);
+   642→    const fan = addShadow(new THREE.Mesh(
+   643→      new THREE.CylinderGeometry(4, 4, 1, 16), darkFrame
+   644→    ));
+   645→    fan.rotation.z = Math.PI / 2;
+   646→    fan.position.set(s * (buildingW / 2 + 8), 80, -30);
+   647→    thirdFloor.add(fan);
+   648→  });
+   649→
+   650→  root.add(thirdFloor);
+   651→
+   652→  // ========================================================================
+   653→  // ROOF (flat roof with parapet, water tank, solar heater, satellite)
+   654→  // ========================================================================
+   655→  const roofGroup = new THREE.Group();
+   656→  roofGroup.position.y = floorH * 3;
+   657→
+   658→  // Roof slab
+   659→  const roofSlab = addShadow(new THREE.Mesh(
+   660→    new THREE.BoxGeometry(buildingW + 4, 4, buildingD + 4), roofMat
+   661→  ));
+   662→  roofGroup.add(roofSlab);
+   663→
+   664→  // Parapet wall (low wall around roof perimeter)
+   665→  const parapetH = 15;
+   666→  // Front
+   667→  const parapetF = addShadow(new THREE.Mesh(
+   668→    new THREE.BoxGeometry(buildingW + 4, parapetH, wallT), concreteMat
+   669→  ));
+   670→  parapetF.position.set(0, parapetH / 2 + 2, buildingD / 2);
+   671→  roofGroup.add(parapetF);
+   672→  // Back
+   673→  const parapetB = addShadow(new THREE.Mesh(
+   674→    new THREE.BoxGeometry(buildingW + 4, parapetH, wallT), concreteMat
+   675→  ));
+   676→  parapetB.position.set(0, parapetH / 2 + 2, -buildingD / 2);
+   677→  roofGroup.add(parapetB);
+   678→  // Sides
+   679→  [-1, 1].forEach((s) => {
+   680→    const p = addShadow(new THREE.Mesh(
+   681→      new THREE.BoxGeometry(wallT, parapetH, buildingD), concreteMat
+   682→    ));
+   683→    p.position.set(s * (buildingW / 2 + 2 - wallT / 2), parapetH / 2 + 2, 0);
+   684→    roofGroup.add(p);
+   685→  });
+   686→
+   687→  // === Stair access penthouse (small structure on roof) ===
+   688→  const penthouse = addShadow(new THREE.Mesh(
+   689→    new THREE.BoxGeometry(30, 30, 25), concreteMat
+   690→  ));
+   691→  penthouse.position.set(-60, 17, -40);
+   692→  roofGroup.add(penthouse);
+   693→  // Penthouse door
+   694→  const pdoor = addShadow(new THREE.Mesh(
+   695→    new THREE.BoxGeometry(10, 18, 1), doorMat
+   696→  ));
+   697→  pdoor.position.set(-60, 11, -27);
+   698→  roofGroup.add(pdoor);
+   699→  // Penthouse roof
+   700→  const proof = addShadow(new THREE.Mesh(
+   701→    new THREE.BoxGeometry(34, 2, 29), roofMat
+   702→  ));
+   703→  proof.position.set(-60, 33, -40);
+   704→  roofGroup.add(proof);
+   705→
+   706→  // === Water tank (large cylindrical tank on roof) ===
+   707→  const tank = addShadow(new THREE.Mesh(
+   708→    new THREE.CylinderGeometry(15, 15, 25, 24),
+   709→    new THREE.MeshStandardMaterial({ color: 0x4a90c2, metalness: 0.5, roughness: 0.4 })
+   710→  ));
+   711→  tank.position.set(40, 17, -40);
+   712→  roofGroup.add(tank);
+   713→  // Tank lid
+   714→  const tankLid = addShadow(new THREE.Mesh(
+   715→    new THREE.CylinderGeometry(15.5, 15.5, 2, 24), darkFrame
+   716→  ));
+   717→  tankLid.position.set(40, 30, -40);
+   718→  roofGroup.add(tankLid);
+   719→  // Tank support legs (4)
+   720→  [[10, 10], [10, -10], [-10, 10], [-10, -10]].forEach(([dx, dz]) => {
+   721→    const leg = addShadow(new THREE.Mesh(
+   722→      new THREE.BoxGeometry(3, 8, 3), darkFrame
+   723→    ));
+   724→    leg.position.set(40 + dx, 7, -40 + dz);
+   725→    roofGroup.add(leg);
+   726→  });
+   727→  // Tank pipes
+   728→  const pipe1 = addShadow(new THREE.Mesh(
+   729→    new THREE.CylinderGeometry(1.5, 1.5, 20, 8), stainless()
+   730→  ));
+   731→  pipe1.position.set(25, 12, -40);
+   732→  pipe1.rotation.z = Math.PI / 2;
+   733→  roofGroup.add(pipe1);
+   734→
+   735→  // === Solar water heater panels (tilted) ===
+   736→  for (let i = 0; i < 3; i++) {
+   737→    const panel = addShadow(new THREE.Mesh(
+   738→      new THREE.BoxGeometry(20, 1, 15), solarMat
+   739→    ));
+   740→    panel.position.set(-20 + i * 22, 18, 40);
+   741→    panel.rotation.x = -0.4; // tilt toward sun
+   742→    roofGroup.add(panel);
+   743→    // Panel frame
+   744→    const pframe = addShadow(new THREE.Mesh(
+   745→      new THREE.BoxGeometry(22, 2, 17), darkFrame
+   746→    ));
+   747→    pframe.position.set(-20 + i * 22, 17, 40);
+   748→    pframe.rotation.x = -0.4;
+   749→    roofGroup.add(pframe);
+   750→    // Support legs
+   751→    const leg1 = addShadow(new THREE.Mesh(
+   752→      new THREE.CylinderGeometry(1, 1, 8, 8), darkFrame
+   753→    ));
+   754→    leg1.position.set(-20 + i * 22 - 8, 8, 47);
+   755→    roofGroup.add(leg1);
+   756→    const leg2 = addShadow(new THREE.Mesh(
+   757→      new THREE.CylinderGeometry(1, 1, 14, 8), darkFrame
+   758→    ));
+   759→    leg2.position.set(-20 + i * 22 + 8, 5, 33);
+   760→    roofGroup.add(leg2);
+   761→    // Vacuum tubes (row of cylinders)
+   762→    for (let j = 0; j < 5; j++) {
+   763→      const tube = addShadow(new THREE.Mesh(
+   764→        new THREE.CylinderGeometry(1.5, 1.5, 18, 8),
+   765→        new THREE.MeshStandardMaterial({ color: 0x1a3a5a, metalness: 0.6, roughness: 0.2 })
+   766→      ));
+   767→      tube.position.set(-20 + i * 22 - 6 + j * 3, 12, 40);
+   768→      tube.rotation.x = -0.4;
+   769→      roofGroup.add(tube);
+   770→    }
+   771→  }
+   772→
+   773→  // Solar water tank (connected to panels)
+   774→  const solarTank = addShadow(new THREE.Mesh(
+   775→    new THREE.CylinderGeometry(8, 8, 20, 16),
+   776→    new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.6, roughness: 0.3 })
+   777→  ));
+   778→  solarTank.position.set(50, 14, 40);
+   779→  solarTank.rotation.z = Math.PI / 2;
+   780→  roofGroup.add(solarTank);
+   781→
+   782→  // === Satellite dish ===
+   783→  const dishBase = addShadow(new THREE.Mesh(
+   784→    new THREE.CylinderGeometry(3, 4, 5, 12), darkFrame
+   785→  ));
+   786→  dishBase.position.set(70, 7, 0);
+   787→  roofGroup.add(dishBase);
+   788→  const dishPole = addShadow(new THREE.Mesh(
+   789→    new THREE.CylinderGeometry(1, 1, 15, 8), darkFrame
+   790→  ));
+   791→  dishPole.position.set(70, 17, 0);
+   792→  roofGroup.add(dishPole);
+   793→  // Dish (parabolic — use sphere segment)
+   794→  const dish = addShadow(new THREE.Mesh(
+   795→    new THREE.SphereGeometry(10, 24, 12, 0, Math.PI * 2, 0, Math.PI / 3),
+   796→    new THREE.MeshStandardMaterial({ color: 0xe0e0e0, metalness: 0.4, roughness: 0.4 })
+   797→  ));
+   798→  dish.position.set(70, 25, 0);
+   799→  dish.rotation.x = -0.8;
+   800→  roofGroup.add(dish);
+   801→  // LNB (low-noise block) at focal point
+   802→  const lnb = addShadow(new THREE.Mesh(
+   803→    new THREE.CylinderGeometry(1, 1, 4, 8), darkFrame
+   804→  ));
+   805→  lnb.position.set(70, 22, 5);
+   806→  roofGroup.add(lnb);
+   807→  // LNB arm
+   808→  const lnbArm = addShadow(new THREE.Mesh(
+   809→    new THREE.CylinderGeometry(0.5, 0.5, 8, 6), darkFrame
+   810→  ));
+   811→  lnbArm.position.set(70, 23, 3);
+   812→  lnbArm.rotation.x = Math.PI / 2;
+   813→  roofGroup.add(lnbArm);
+   814→
+   815→  // === AC condenser units on roof (large central AC) ===
+   816→  for (let i = 0; i < 2; i++) {
+   817→    const cond = addShadow(new THREE.Mesh(
+   818→      new THREE.BoxGeometry(25, 15, 12), acMat
+   819→    ));
+   820→    cond.position.set(-70 + i * 5, 10, 30 + i * 5);
+   821→    roofGroup.add(cond);
+   822→    // Fan on top
+   823→    const fan = addShadow(new THREE.Mesh(
+   824→      new THREE.CylinderGeometry(5, 5, 1, 16), darkFrame
+   825→    ));
+   826→    fan.position.set(-70 + i * 5, 18, 30 + i * 5);
+   827→    roofGroup.add(fan);
+   828→    for (let j = 0; j < 5; j++) {
+   829→      const blade = new THREE.Mesh(
+   830→        new THREE.BoxGeometry(9, 0.5, 1), darkFrame
+   831→      );
+   832→      blade.position.set(-70 + i * 5, 18.5, 30 + i * 5);
+   833→      blade.rotation.y = (j / 5) * Math.PI * 2;
+   834→      roofGroup.add(blade);
+   835→    }
+   836→    // Side fins
+   837→    const sfins = addShadow(new THREE.Mesh(
+   838→      new THREE.BoxGeometry(1, 12, 10), darkFrame
+   839→    ));
+   840→    sfins.position.set(-70 + i * 5 - 13, 10, 30 + i * 5);
+   841→    roofGroup.add(sfins);
+   842→  }
+   843→
+   844→  // === Vent pipes (stink pipes — plumbing vents) ===
+   845→  [-30, 0, 30].forEach((x) => {
+   846→    const vent = addShadow(new THREE.Mesh(
+   847→      new THREE.CylinderGeometry(2, 2, 20, 12), darkFrame
+   848→    ));
+   849→    vent.position.set(x, 12, -60);
+   850→    roofGroup.add(vent);
+   851→    // Vent cap
+   852→    const cap = addShadow(new THREE.Mesh(
+   853→      new THREE.ConeGeometry(3, 4, 12), darkFrame
+   854→    ));
+   855→    cap.position.set(x, 24, -60);
+   856→    roofGroup.add(cap);
+   857→  });
+   858→
+   859→  // === Drying area (clotheslines on roof) ===
+   860→  for (let i = 0; i < 3; i++) {
+   861→    const line = addShadow(new THREE.Mesh(
+   862→      new THREE.CylinderGeometry(0.3, 0.3, 40, 6), plastic(0xffffff)
+   863→    ));
+   864→    line.rotation.z = Math.PI / 2;
+   865→    line.position.set(0, 25, -10 + i * 8);
+   866→    roofGroup.add(line);
+   867→  }
+   868→  // Clothesline posts
+   869→  [-20, 20].forEach((x) => {
+   870→    [-10, -2, 6].forEach((z) => {
+   871→      const post = addShadow(new THREE.Mesh(
+   872→        new THREE.BoxGeometry(2, 25, 2), darkFrame
+   873→      ));
+   874→      post.position.set(x, 14, z);
+   875→      roofGroup.add(post);
+   876→    });
+   877→  });
+   878→
+   879→  root.add(roofGroup);
+   880→
+   881→  // ========================================================================
+   882→  // EXTERIOR DETAILS (around the building)
+   883→  // ========================================================================
+   884→
+   885→  // === Front steps (entrance) ===
+   886→  for (let i = 0; i < 3; i++) {
+   887→    const step = addShadow(new THREE.Mesh(
+   888→      new THREE.BoxGeometry(40, 2, 6),
+   889→      new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.2, roughness: 0.7 })
+   890→    ));
+   891→    step.position.set(0, 2 + i * 2, buildingD / 2 + 25 + i * 6);
+   892→    root.add(step);
+   893→  }
+   894→
+   895→  // === Lanterns (Chinese-style red lanterns at entrance) ===
+   896→  [-1, 1].forEach((s) => {
+   897→    const lantern = addShadow(new THREE.Mesh(
+   898→      new THREE.SphereGeometry(5, 16, 12),
+   899→      new THREE.MeshStandardMaterial({
+   900→        color: 0xdc2626, emissive: 0x440000,
+   901→        metalness: 0.1, roughness: 0.5
+   902→      })
+   903→    ));
+   904→    lantern.position.set(s * 25, 95, buildingD / 2 + 8);
+   905→    lantern.scale.y = 1.3;
+   906→    root.add(lantern);
+   907→    // Lantern cap (top)
+   908→    const lcap = addShadow(new THREE.Mesh(
+   909→      new THREE.CylinderGeometry(2, 3, 2, 8), darkFrame
+   910→    ));
+   911→    lcap.position.set(s * 25, 101, buildingD / 2 + 8);
+   912→    root.add(lcap);
+   913→    // Lantern tassel
+   914→    const tassel = addShadow(new THREE.Mesh(
+   915→      new THREE.CylinderGeometry(0.5, 1.5, 5, 6),
+   916→      new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.1, roughness: 0.7 })
+   917→    ));
+   918→    tassel.position.set(s * 25, 87, buildingD / 2 + 8);
+   919→    root.add(tassel);
+   920→    // Hanging wire
+   921→    const wire = addShadow(new THREE.Mesh(
+   922→      new THREE.CylinderGeometry(0.2, 0.2, 15, 6), darkFrame
+   923→    ));
+   924→    wire.position.set(s * 25, 110, buildingD / 2 + 8);
+   925→    root.add(wire);
+   926→  });
+   927→
+   928→  // === Street sign / lamp post (in front) ===
+   929→  const lampPost = addShadow(new THREE.Mesh(
+   930→    new THREE.CylinderGeometry(1.5, 2, 120, 12), darkFrame
+   931→  ));
+   932→  lampPost.position.set(buildingW / 2 + 20, 60, buildingD / 2 + 30);
+   933→  root.add(lampPost);
+   934→  // Lamp arm
+   935→  const lampArm = addShadow(new THREE.Mesh(
+   936→    new THREE.BoxGeometry(20, 2, 2), darkFrame
+   937→  ));
+   938→  lampArm.position.set(buildingW / 2 + 10, 115, buildingD / 2 + 30);
+   939→  root.add(lampArm);
+   940→  // Lamp head
+   941→  const lampHead = addShadow(new THREE.Mesh(
+   942→    new THREE.BoxGeometry(8, 6, 8),
+   943→    new THREE.MeshStandardMaterial({ color: 0x404040, metalness: 0.6, roughness: 0.4 })
+   944→  ));
+   945→  lampHead.position.set(buildingW / 2 + 2, 112, buildingD / 2 + 30);
+   946→  root.add(lampHead);
+   947→  // Lamp glow
+   948→  const lampGlow = new THREE.Mesh(
+   949→    new THREE.BoxGeometry(6, 4, 6),
+   950→    new THREE.MeshStandardMaterial({
+   951→      color: 0xffdd88, emissive: 0xffdd88, emissiveIntensity: 0.6
+   952→    })
+   953→  );
+   954→  lampGlow.position.set(buildingW / 2 + 2, 111, buildingD / 2 + 30);
+   955→  root.add(lampGlow);
+   956→
+   957→  // === Trees (street trees in front) ===
+   958→  [-1, 1].forEach((s) => {
+   959→    const trunk = addShadow(new THREE.Mesh(
+   960→      new THREE.CylinderGeometry(2, 3, 25, 8), woodMat
+   961→    ));
+   962→    trunk.position.set(s * (buildingW / 2 + 40), 12, buildingD / 2 + 50);
+   963→    root.add(trunk);
+   964→    // Foliage (3 spheres)
+   965→    for (let i = 0; i < 3; i++) {
+   966→      const foliage = addShadow(new THREE.Mesh(
+   967→        new THREE.SphereGeometry(8 + Math.random() * 2, 12, 10), grassMat
+   968→      ));
+   969→      foliage.position.set(
+   970→        s * (buildingW / 2 + 40) + (Math.random() - 0.5) * 6,
+   971→        28 + i * 4,
+   972→        buildingD / 2 + 50 + (Math.random() - 0.5) * 6
+   973→      );
+   974→      root.add(foliage);
+   975→    }
+   976→  });
+   977→
+   978→  // === Power lines (running to building) ===
+   979→  for (let i = 0; i < 3; i++) {
+   980→    const line = new THREE.Mesh(
+   981→      new THREE.CylinderGeometry(0.3, 0.3, 60, 6), darkFrame
+   982→    );
+   983→    line.position.set(buildingW / 2 + 30, 220 + i * 5, 0);
+   984→    line.rotation.z = Math.PI / 2;
+   985→    line.rotation.x = 0.1;
+   986→    root.add(line);
+   987→  }
+   988→
+   989→  // === Building address plate ===
+   990→  const addrPlate = addShadow(new THREE.Mesh(
+   991→    new THREE.BoxGeometry(15, 8, 0.5),
+   992→    new THREE.MeshStandardMaterial({ color: 0x1e3a5f, metalness: 0.3, roughness: 0.4 })
+   993→  ));
+   994→  addrPlate.position.set(-buildingW / 2 - 0.5, 50, 0);
+   995→  addrPlate.rotation.y = Math.PI / 2;
+   996→  root.add(addrPlate);
+   997→
+   998→  return root;
+   999→}
+  1000→
