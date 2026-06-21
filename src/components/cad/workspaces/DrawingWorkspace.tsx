@@ -11,7 +11,7 @@ import {
 export function DrawingWorkspace() {
   const drawings = useCADStore((s) => s.drawings);
   const activeSheetId = useCADStore((s) => s.activeDrawingSheetId);
-  const setActiveSheetId = useCADStore((s) => s.setActiveSheetId);
+  const setActiveSheetId = useCADStore((s) => s.setActiveDrawingSheetId);
   const setExportDialogOpen = useCADStore((s) => s.setExportDialogOpen);
   const toast = useCADStore((s) => s.toast);
   const [zoom, setZoom] = useState(1);

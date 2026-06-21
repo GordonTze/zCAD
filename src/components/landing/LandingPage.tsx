@@ -83,7 +83,7 @@ export function LandingPage({ onLaunch }: LandingPageProps) {
             <a href="#tech" className="hover:text-white transition">Tech Stack</a>
           </div>
           <button
-            onClick={onLaunch}
+            onClick={() => onLaunch()}
             className="px-5 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 transition font-medium text-sm"
           >
             Launch Studio →
@@ -124,7 +124,7 @@ export function LandingPage({ onLaunch }: LandingPageProps) {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={onLaunch}
+              onClick={() => onLaunch()}
               className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 transition font-semibold text-base shadow-lg shadow-orange-500/25"
             >
               Launch ZCAD Studio →
@@ -282,7 +282,7 @@ export function LandingPage({ onLaunch }: LandingPageProps) {
             to full architectural scenes you can walk through.
           </p>
           <button
-            onClick={onLaunch}
+            onClick={() => onLaunch()}
             className="px-10 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 transition font-bold text-lg shadow-xl shadow-orange-500/25"
           >
             Launch ZCAD Studio →
